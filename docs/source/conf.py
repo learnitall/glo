@@ -17,7 +17,7 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'glofub'
+project = 'glo'
 copyright = '2020, Ryan Drew'
 author = 'Ryan Drew'
 

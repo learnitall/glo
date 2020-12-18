@@ -1,9 +1,9 @@
-.. glofub documentation master file, created by
+.. glo documentation master file, created by
    sphinx-quickstart on Thu Dec 17 18:12:15 2020.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to glofub's documentation!
+Welcome to glo's documentation!
 ==================================
 
 .. toctree::
