@@ -6,7 +6,7 @@ from pint.unit import Unit
 from . import Q_
 
 
-class NutritionFact(object):
+class NutritionFact:
     """
     Representation of a basic nutrition fact (essentially a named unit).
 
