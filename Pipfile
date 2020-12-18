@@ -12,8 +12,10 @@ tox = "*"
 sphinx = "*"
 numpydoc = "*"
 pytest-cov = "*"
+glo = {editable = true, path = "."}
 
 [packages]
+pint = "*"
 numpy = "*"
 
 [requires]
