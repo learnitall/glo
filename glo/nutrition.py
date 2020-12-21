@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Tools for working with and representing nutrition information."""
 from typing import Any
 from pint.quantity import Quantity
 from pint.unit import Unit
@@ -73,6 +74,7 @@ class NutritionFact:
 
     @property
     def amount(self):
+        """Amount of given nutrition fact this instance represents."""
         return self.quantity.m
 
     @amount.setter
@@ -81,6 +83,7 @@ class NutritionFact:
 
     @property
     def units(self):
+        """`Pint` units for the amount of the nutrition fact."""
         return self.quantity.units
 
     @units.setter
