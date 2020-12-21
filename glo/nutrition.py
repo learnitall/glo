@@ -4,7 +4,7 @@
 from typing import Any
 from pint.quantity import Quantity
 from pint.unit import Unit
-from . import Q_
+from ._ureg import Q_
 
 
 class NutritionFact:
