@@ -3,5 +3,5 @@
 """Initialize unit registry from ``pint`` module."""
 import pint
 
-ureg = pint.UnitRegistry(system='SI')
+ureg = pint.UnitRegistry(system="SI")
 Q_ = ureg.Quantity

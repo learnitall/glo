@@ -60,7 +60,7 @@ class NutritionFact:
     <Quantity(0.26, 'gram')>
     """
 
-    __slots__ = ['name', 'quantity']
+    __slots__ = ["name", "quantity"]
 
     def __init__(self, name: str, quantity: Quantity = None):
         """NutritionFact constructor."""
