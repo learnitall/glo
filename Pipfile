@@ -13,6 +13,7 @@ sphinx = "*"
 numpydoc = "*"
 pytest-cov = "*"
 glo = {editable = true, path = "."}
+pylint = "*"
 
 [packages]
 pint = "*"
