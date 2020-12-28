@@ -79,7 +79,8 @@ class NutritionFact:
     Attributes
     ----------
     name: str
-        See above parameter description.
+        Read only name for this nutrition fact. See above parameter
+        description for more information.
     quantity: pint.unit.Quantity
         See above parameter description.
     amount:
@@ -115,14 +116,14 @@ class NutritionFact:
     <Quantity(0.26, 'gram')>
     """
 
-    __slots__ = ["name", "quantity"]
+    __slots__ = ["_name", "quantity"]
 
     # TODO make name attribute readonly
 
     def __init__(self, name: str, quantity: Quantity = None):
         """NutritionFact constructor."""
 
-        self.name = name
+        self._name = name
 
         if quantity is None:
             self.quantity = Q_(0, None)
@@ -144,6 +145,11 @@ class NutritionFact:
     @_operator_overload_wrap
     def __truediv__(self, other):
         return NutritionFact(self.name, self.quantity / other)
+
+    @property
+    def name(self):
+        """Name of given nutrition fact this instance represents."""
+        return self._name
 
     @property
     def amount(self):

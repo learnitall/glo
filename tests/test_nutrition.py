@@ -93,6 +93,14 @@ def test_operator_overloads_nutrition_fact():
     assert (nf1 / nf2).quantity == glo.Q_(10 / 11.2, "dimensionless")
 
 
+def test_nutrition_fact_name_is_read_only():
+    """Test that ``NutritionFact.name`` is read-only."""
+
+    nf = glo.NutritionFact("test name")
+    with pytest.raises(AttributeError):
+        nf.name = "test"
+
+
 def test_create_basic_nutrition_set_instance():
     """Test can create and access attributes of ``NutritionSet``."""
 
