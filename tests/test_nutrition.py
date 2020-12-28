@@ -151,14 +151,26 @@ def test_update_method_nutrition_set():
         assert ns.get(nf_name).amount == 0
 
     ns.update(nf1)
-    ns.update({"fat": nf2.quantity})
-    ns.update([nf1, nf2, nf2])
-    ns.update((_ for _ in [nf1, nf2, nf3]))  # check we can use iters
-    ns.update(ns2)
+    assert ns["sodium"].amount == 10
+    ns.data = dict()
 
+    ns.update({"fat": nf2.quantity})
+    assert ns["fat"].amount == 11
+    ns.data = dict()
+
+    ns.update([nf1, nf2, nf3])
     assert ns["sodium"].amount == 10
     assert ns["fat"].amount == 11
     assert ns["calories"].amount == 100
+    ns.data = dict()
+
+    ns.update((_ for _ in [nf1, nf2, nf3]))  # check we can use iters
+    assert ns["sodium"].amount == 10
+    assert ns["fat"].amount == 11
+    assert ns["calories"].amount == 100
+    ns.data = dict()
+
+    ns.update(ns2)
     assert ns["protein"].amount == 15
 
 
