@@ -1,15 +1,29 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Tools for working with and representing nutrition information."""
-from typing import Any, Iterable, Mapping, Union
+from typing import Any, Callable, Iterable, Mapping, Union
 import collections
 from pint.quantity import Quantity
 from pint.unit import Unit
 from ._ureg import Q_, ureg
 
 
-# TODO: Add type hint for operator_func
-def _operator_overload_wrap(operator_func):
+_operator_func_type = Callable[
+    [
+        'NutritionFact',
+        Union[
+            'NutritionFact',
+            ureg.Quantity,
+            int,
+            float
+        ]
+    ],
+    'NutritionFact'
+]
+
+
+def _operator_overload_wrap(operator_func: _operator_func_type
+                            ) -> _operator_func_type:
     """
     Operator overload wrap to check type and name attribute.
 
@@ -29,7 +43,8 @@ def _operator_overload_wrap(operator_func):
         Take in a ``NutritionFact`` instance and either another
         ``NutritionFact``, a ``pint.quantity.Quantity``, an int
         or a float, then perform some sort of operation on them
-        (mainly add or sub).
+        (mainly add or sub), returning new ``NutritionFact``
+        with resulting quantity.
 
     Raises
     ------
