@@ -1,10 +1,63 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Tools for working with and representing nutrition information."""
-from typing import Any
+from typing import Any, Callable
 from pint.quantity import Quantity
 from pint.unit import Unit
-from ._ureg import Q_
+from ._ureg import Q_, ureg
+
+
+def _operator_overload_wrap(operator_func):
+    """
+    Operator overload wrap to check type and name attribute.
+
+    Check to make sure that when performing operations on a
+    ``NutritionFact`` instance with an object denoted as ``other``,
+    that ``other`` is of the proper type and that both objects
+    have the same ``name``. Additionally this method will return
+    the ``NutritionFact`` instance that the operation is being
+     performed on to ensure that operations can be chained.
+
+    If ``other`` is a ``float`` or an ``int``, then it will
+    be passed to ``operator_func`` as a dimensionless quantity.
+
+    Parameters
+    ----------
+    operator_func: callable
+        Take in a ``NutritionFact`` instance and either another
+        ``NutritionFact``, a ``pint.quantity.Quantity``, an int
+        or a float, then perform some sort of operation on them
+        (mainly add or sub).
+
+    Raises
+    ------
+    TypeError
+        If ``other`` is not a ``NutritionFact`` or a
+        ``pint.quantity.Quantity``.
+    ValueError
+        If ``other`` does not have the same ``name`` as left-hand-side
+        ``NutritionFact``.
+    """
+
+    def _wrapped(self, other):
+        if isinstance(other, ureg.Quantity):
+            ret_val = operator_func(self, other)
+        elif isinstance(other, NutritionFact):
+            if other.name != self.name:
+                raise ValueError(
+                    "Refusing to operator on two NutritionFacts with "
+                    f"mismatch names: {self.name} != {other.name}"
+                )
+            ret_val = operator_func(self, other.quantity)
+        elif isinstance(other, (float, int)):
+            ret_val = operator_func(self, Q_(other, "dimensionless"))
+        else:
+            raise TypeError(
+                f"Invalid type for operation with NutritionFact: {type(other)}"
+            )
+        return ret_val
+
+    return _wrapped
 
 
 class NutritionFact:
@@ -71,6 +124,22 @@ class NutritionFact:
             self.quantity = Q_(0, None)
         else:
             self.quantity = quantity
+
+    @_operator_overload_wrap
+    def __add__(self, quantity):
+        return NutritionFact(self.name, self.quantity + quantity)
+
+    @_operator_overload_wrap
+    def __sub__(self, quantity):
+        return NutritionFact(self.name, self.quantity - quantity)
+
+    @_operator_overload_wrap
+    def __mul__(self, other):
+        return NutritionFact(self.name, self.quantity * other)
+
+    @_operator_overload_wrap
+    def __truediv__(self, other):
+        return NutritionFact(self.name, self.quantity / other)
 
     @property
     def amount(self):
