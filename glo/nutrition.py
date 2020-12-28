@@ -118,8 +118,6 @@ class NutritionFact:
 
     __slots__ = ["_name", "quantity"]
 
-    # TODO make name attribute readonly
-
     def __init__(self, name: str, quantity: Quantity = None):
         """NutritionFact constructor."""
 
