@@ -8,22 +8,13 @@ from pint.unit import Unit
 from ._ureg import Q_, ureg
 
 
-_operator_func_type = Callable[
-    [
-        'NutritionFact',
-        Union[
-            'NutritionFact',
-            ureg.Quantity,
-            int,
-            float
-        ]
-    ],
-    'NutritionFact'
+_NFOperator = Callable[
+    ["NutritionFact", Union["NutritionFact", ureg.Quantity, int, float]],
+    "NutritionFact",
 ]
 
 
-def _operator_overload_wrap(operator_func: _operator_func_type
-                            ) -> _operator_func_type:
+def _operator_overload_wrap(operator_func: _NFOperator) -> _NFOperator:
     """
     Operator overload wrap to check type and name attribute.
 
@@ -183,7 +174,62 @@ class NutritionFact:
         self.quantity = self.quantity.to(units)
 
 
-class NutritionSet(collections.UserDict):
+class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
+    """
+    Dictionary representation of a group of ``NutritionFact``.
+
+    This class inherits from ``collections.UserDict`` and is tailored
+    to make working with ``NutritionFact`` much easier. Keys in this
+    specialized dictionary are the string names of ``NutritionFact``
+    and values are the ``NutritionFact`` themselves.
+
+    Parameters
+    ----------
+    facts: iterable
+        Iterable of ``NutritionFact`` that will act as the initial
+        data for the set.
+
+    Methods
+    -------
+    clear:
+        See ``dict.clear``.
+    get:
+        See ``dict.get``.
+    items:
+        See ``dict.items``.
+    keys:
+        See ``dict.keys``.
+    pop:
+        See ``dict.pop``.
+    popitem:
+        See ``dict.popitem``.
+    setdefault:
+        See ``dict.setdefault``.
+    update:
+        Overloaded from ``dict.update`` to ease working with
+        ``NutritionFacts``. See method docstring below.
+    values:
+        See ``dict.values``.
+
+    Examples
+    --------
+    >>> import glo
+    >>> sodium = glo.NutritionFact("sodium", glo.Q_(10, "grams"))
+    >>> protein = glo.NutritionFact("protein", glo.Q_(15, "grams"))
+    >>> fat = glo.NutritionFact("fat", glo.Q_(5, "grams"))
+    >>> my_set = glo.NutritionSet(sodium, protein, fat)
+    >>> my_set["sodium"].amount
+    10
+    >>> my_set["sodium"] += glo.Q_(5, "grams")
+    >>> my_set["sodium"].amount
+    15
+    >>> my_set["calories"].amount
+    0
+    >>> calories = glo.NutritionFact("calories", glo.Q_(100, None))
+    >>> my_set.update(calories)
+    >>> my_set["calories"].amount
+    100
+    """
 
     def __init__(self, *facts: NutritionFact):
         """NutritionSet constructor."""
@@ -191,6 +237,7 @@ class NutritionSet(collections.UserDict):
         super().__init__(facts)
 
     def __getitem__(self, key) -> NutritionFact:
+        # TODO raise TypeError if key is not str
         try:
             return super().__getitem__(key)
         except KeyError:
@@ -206,33 +253,78 @@ class NutritionSet(collections.UserDict):
                 f"Expected NutritionFact or Quantity, got: {type(value)}"
             )
 
-    def update(
-            self,
-            other: Union[
-                NutritionFact,
-                Iterable[NutritionFact],
-                Mapping[str, ureg.Quantity],
-                'NutritionSet'
-            ],
-            **kwargs
+    def update(  # pylint: disable=arguments-differ
+        self,
+        other: Union[
+            NutritionFact,
+            Iterable[NutritionFact],
+            Mapping[str, ureg.Quantity],
+            "NutritionSet",
+        ],
+        **kwargs,
     ) -> None:
+        """
+        Update the ``NutritionSet`` based on given arguments.
+
+        Overloaded form of ``dict.update``.
+
+        Parameters
+        ----------
+        other:
+            Lots of options here. Can be a ``NutritionFact``, a
+            iterable of ``NutritionFact``s, a mapping of strings
+            to ``pint.quantity.Quantity``s or another ``NutritionSet``.
+
+        Examples
+        --------
+        >>> # Say we have the following variables to start with:
+        >>> import glo
+        >>> sodium = glo.NutritionFact("sodium", glo.Q_(10, "grams"))
+        >>> protein = glo.NutritionFact("protein", glo.Q_(15, "grams"))
+        >>> fat = glo.NutritionFact("fat", glo.Q_(5, "grams"))
+        >>> my_ns = glo.NutritionSet()
+        >>> # We can update my_ns like so
+        >>> my_ns.update(protein)
+        >>> my_ns["protein"].amount
+        15
+        >>> my_ns.update([sodium, fat])
+        >>> my_ns.get("sodium").amount
+        10
+        >>> my_ns.get("fat").amount
+        5
+        >>> # Clear my_ns
+        >>> my_ns.data = dict()
+        >>> my_ns.update(
+        ...    {nf.name: nf.quantity for nf in [sodium, protein, fat]}
+        ... )
+        >>> print(
+        ...     f"{my_ns['sodium'].amount}, "
+        ...     f"{my_ns['protein'].amount}, "
+        ...     f"{my_ns['fat'].amount}"
+        ... )
+        10, 15, 5
+        """
         if isinstance(other, NutritionFact):
             self.__setitem__(other.name, other)
         elif isinstance(other, dict):
             # Combine kwargs with other since they're both dicts
             other.update(kwargs)
-            for k, v in other.items():
-                if not isinstance(k, str) or not isinstance(v, ureg.Quantity):
+            for key, val in other.items():
+                if not isinstance(key, str) or not isinstance(
+                    val, ureg.Quantity
+                ):
                     raise TypeError(
                         "Expected Mapping[str, pint.quantity.Quantity], got: "
-                        f"{type(k)} -> {type(v)}"
+                        f"{type(key)} -> {type(val)}"
                     )
-                self.__setitem__(k, v)
+                self.__setitem__(key, val)
         elif isinstance(other, NutritionSet):
-            for k, v in other.data.items():
-                self.__setitem__(k, v)
+            for key, val in other.data.items():
+                self.__setitem__(key, val)
         else:
-            for n in other:
-                if not isinstance(n, NutritionFact):
-                    raise TypeError(f"Expected NutritionFact, got: {type(n)}")
-                self.__setitem__(n.name, n)
+            for nut_fact in other:
+                if not isinstance(nut_fact, NutritionFact):
+                    raise TypeError(
+                        f"Expected NutritionFact, got: {type(nut_fact)}"
+                    )
+                self.__setitem__(nut_fact.name, nut_fact)
