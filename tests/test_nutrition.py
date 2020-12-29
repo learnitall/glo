@@ -58,25 +58,14 @@ def test_operator_overloads_nutrition_fact():
     with pytest.raises(TypeError):
         nf1 - 15
 
-    # Doesn't make sense to do these operations with strings
-    with pytest.raises(TypeError):
-        nf1 + "I am a string"
-    with pytest.raises(TypeError):
-        nf1 - "I am a string"
-    with pytest.raises(TypeError):
-        nf1 * "I am a string"
-    with pytest.raises(TypeError):
-        nf1 / "I am a string"
-
-    # Doesn't make sense to do operations with sodium and calories
-    with pytest.raises(ValueError):
-        nf1 + nf3
-    with pytest.raises(ValueError):
-        nf1 - nf3
-    with pytest.raises(ValueError):
-        nf1 * nf3
-    with pytest.raises(ValueError):
-        nf1 / nf3
+    _locals = {'nf1': nf1, 'nf3': nf3}
+    for op in ('+', '-', '*', '/'):
+        # Doesn't make sense to do these operations with strings
+        with pytest.raises(TypeError):
+            eval(f'nf1 {op} "I am a string"', _locals)
+        with pytest.raises(ValueError):
+            # Doesn't make sense to do operations with sodium and calories
+            eval(f'nf1 {op} nf3', _locals)
 
     assert round((nf1 + q).amount, ndigits=2) == 10.03
     assert round((nf1 + nf2).amount, ndigits=1) == 21.2
