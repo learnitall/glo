@@ -250,6 +250,9 @@ class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
     >>> my_set.update(calories)
     >>> my_set["calories"].amount
     100
+    >>> my_set += glo.NutritionSet(calories * 2)
+    >>> my_set["calories"].amount
+    300
     """
 
     def __init__(self, *facts: NutritionFact):
