@@ -246,7 +246,7 @@ class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
     15
     >>> my_set["calories"].amount
     0
-    >>> calories = glo.NutritionFact("calories", glo.Q_(100, None))
+    >>> calories = glo.NutritionFact("calories", glo.Q_(100, "calories"))
     >>> my_set.update(calories)
     >>> my_set["calories"].amount
     100
