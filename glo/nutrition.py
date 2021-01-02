@@ -236,14 +236,29 @@ class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
 
         super().__init__(facts)
 
+    @staticmethod
+    def _is_valid_key(key: str) -> None:
+        """
+        Check if given key is valid.
+
+        Raises
+        ------
+        TypeError:
+            If given key is not a string
+        """
+
+        if not isinstance(key, str):
+            raise TypeError(f"Expected type str, instead got {type(key)}")
+
     def __getitem__(self, key) -> NutritionFact:
-        # TODO raise TypeError if key is not str
+        self._is_valid_key(key)
         try:
             return super().__getitem__(key)
         except KeyError:
             return NutritionFact(key, Q_(0, None))
 
     def __setitem__(self, key, value) -> None:
+        self._is_valid_key(key)
         if isinstance(value, ureg.Quantity):
             super().__setitem__(key, NutritionFact(key, value))
         elif isinstance(value, NutritionFact):

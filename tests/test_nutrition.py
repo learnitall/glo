@@ -176,3 +176,7 @@ def test_update_method_nutrition_set_raises_errors_on_bad_types():
     for a in args:
         with pytest.raises(TypeError):
             ns.update(a)
+
+    with pytest.raises(TypeError):
+        ns[10] = glo.Q_(10, "grams")
+        test = ns[10]
