@@ -49,7 +49,7 @@ def test_operator_overloads_nutrition_fact():
     nf1 = glo.NutritionFact("sodium", glo.Q_(10, "grams"))
     q = glo.Q_(30, "milligram")
     nf2 = glo.NutritionFact("sodium", glo.Q_(11.2, "grams"))
-    nf3 = glo.NutritionFact("calories", glo.Q_(10, None))
+    nf3 = glo.NutritionFact("my metric", glo.Q_(10, None))
 
     # Doesn't make sense to add or remove 15 from 10 grams of sodium
     # 15 what?
@@ -96,12 +96,12 @@ def test_create_basic_nutrition_set_instance():
     ns = glo.NutritionSet(
         glo.NutritionFact("sodium", glo.Q_(10, "grams")),
         glo.NutritionFact("fat", glo.Q_(11, "grams")),
-        glo.NutritionFact("calories", glo.Q_(100, None))
+        glo.NutritionFact("my metric", glo.Q_(100, None))
     )
 
     assert ns["sodium"].quantity == glo.Q_(10, "grams")
     assert ns.get("fat").quantity == glo.Q_(11, "grams")
-    assert ns.get("calories").amount == 100
+    assert ns.get("my metric").amount == 100
     assert ns.get("not here").amount == 0
 
 
@@ -131,12 +131,12 @@ def test_update_method_nutrition_set():
     ns = glo.NutritionSet()
     nf1 = glo.NutritionFact("sodium", glo.Q_(10, "grams"))
     nf2 = glo.NutritionFact("fat", glo.Q_(11, "grams"))
-    nf3 = glo.NutritionFact("calories", glo.Q_(100, None))
+    nf3 = glo.NutritionFact("my metric", glo.Q_(100, None))
     ns2 = glo.NutritionSet(
         glo.NutritionFact("protein", glo.Q_(15, "grams"))
     )
 
-    for nf_name in ("sodium", "fat", "calories", "protein"):
+    for nf_name in ("sodium", "fat", "my metric", "protein"):
         assert ns.get(nf_name).amount == 0
 
     ns.update(nf1)
@@ -150,13 +150,13 @@ def test_update_method_nutrition_set():
     ns.update([nf1, nf2, nf3])
     assert ns["sodium"].amount == 10
     assert ns["fat"].amount == 11
-    assert ns["calories"].amount == 100
+    assert ns["my metric"].amount == 100
     ns.data = dict()
 
     ns.update((_ for _ in [nf1, nf2, nf3]))  # check we can use iters
     assert ns["sodium"].amount == 10
     assert ns["fat"].amount == 11
-    assert ns["calories"].amount == 100
+    assert ns["my metric"].amount == 100
     ns.data = dict()
 
     ns.update(ns2)
@@ -207,13 +207,13 @@ def test_nutrition_fact_as_dict_method():
     ns = glo.NutritionSet(
         glo.NutritionFact("sodium", glo.Q_(10, "grams")),
         glo.NutritionFact("fat", glo.Q_(11, "grams")),
-        glo.NutritionFact("calories", glo.Q_(100, None))
+        glo.NutritionFact("my metric", glo.Q_(100, None))
     )
 
     assert ns.as_dict() == {
         "sodium": glo.Q_(10, "grams"),
         "fat": glo.Q_(11, "grams"),
-        "calories": glo.Q_(100, None)
+        "my metric": glo.Q_(100, None)
     }
 
 
