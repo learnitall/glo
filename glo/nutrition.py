@@ -12,6 +12,12 @@ _NFOperator = Callable[
     ["NutritionFact", Union["NutritionFact", ureg.Quantity, int, float]],
     "NutritionFact",
 ]
+_NSCompatibleTypes = Union[
+    "NutritionFact",
+    Iterable["NutritionFact"],
+    Mapping[str, ureg.Quantity],
+    "NutritionSet",
+]
 
 
 def _operator_overload_wrap(operator_func: _NFOperator) -> _NFOperator:
@@ -49,21 +55,22 @@ def _operator_overload_wrap(operator_func: _NFOperator) -> _NFOperator:
 
     def _wrapped(self, other):
         if isinstance(other, ureg.Quantity):
-            ret_val = operator_func(self, other)
+            quantity_param = other
         elif isinstance(other, NutritionFact):
             if other.name != self.name:
                 raise ValueError(
                     "Refusing to operator on two NutritionFacts with "
                     f"mismatch names: {self.name} != {other.name}"
                 )
-            ret_val = operator_func(self, other.quantity)
+            quantity_param = other.quantity
         elif isinstance(other, (float, int)):
-            ret_val = operator_func(self, Q_(other, "dimensionless"))
+            quantity_param = Q_(other, "dimensionless")
         else:
             raise TypeError(
                 f"Invalid type for operation with NutritionFact: {type(other)}"
             )
-        return ret_val
+
+        return operator_func(self, quantity_param)
 
     return _wrapped
 
@@ -136,11 +143,25 @@ class NutritionFact:
 
     @_operator_overload_wrap
     def __add__(self, quantity):
-        return NutritionFact(self.name, self.quantity + quantity)
+        if float(quantity.m) == 0.0:
+            result_quantity = self.quantity
+        elif float(self.amount) == 0.0:
+            result_quantity = quantity
+        else:
+            result_quantity = self.quantity + quantity
+
+        return NutritionFact(self.name, result_quantity)
 
     @_operator_overload_wrap
     def __sub__(self, quantity):
-        return NutritionFact(self.name, self.quantity - quantity)
+        if float(quantity.m) == 0.0:
+            result_quantity = self.quantity
+        elif float(self.amount) == 0.0:
+            result_quantity = -quantity
+        else:
+            result_quantity = self.quantity - quantity
+
+        return NutritionFact(self.name, result_quantity)
 
     @_operator_overload_wrap
     def __mul__(self, other):
@@ -255,7 +276,7 @@ class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
         try:
             return super().__getitem__(key)
         except KeyError:
-            return NutritionFact(key, Q_(0, None))
+            return NutritionFact(key, None)
 
     def __setitem__(self, key, value) -> None:
         self._is_valid_key(key)
@@ -268,15 +289,39 @@ class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
                 f"Expected NutritionFact or Quantity, got: {type(value)}"
             )
 
+    def __sub__(self, other: _NSCompatibleTypes) -> "NutritionSet":
+        """Subtract two NutritionSets together and return the result."""
+
+        ret_ns = NutritionSet()
+        ret_ns.update(self)
+        ret_ns.update(other, merge_func=lambda a, b: a - b)
+        return ret_ns
+
+    def __add__(self, other: _NSCompatibleTypes) -> "NutritionSet":
+        """Add two NutritionSets together and return the result."""
+
+        ret_ns = NutritionSet()
+        ret_ns.update(self)
+        ret_ns.update(other, merge_func=lambda a, b: a + b)
+        return ret_ns
+
+    def as_dict(self) -> Mapping[str, Quantity]:
+        """
+        Return ``dict`` representing this ``NutritionSet``.
+
+        Keys in returned dictionary are ``NutritionFact`` names, and
+        values are their associated ``Quantities`` in this
+        ``NutritionSet``.
+        """
+
+        return {nf.name: nf.quantity for nf in self.data.values()}
+
     def update(  # pylint: disable=arguments-differ
         self,
-        other: Union[
-            NutritionFact,
-            Iterable[NutritionFact],
-            Mapping[str, ureg.Quantity],
-            "NutritionSet",
-        ],
-        **kwargs,
+        other: _NSCompatibleTypes,
+        merge_func: Union[
+            None, Callable[[ureg.Quantity, ureg.Quantity], ureg.Quantity]
+        ] = None,
     ) -> None:
         """
         Update the ``NutritionSet`` based on given arguments.
@@ -286,9 +331,24 @@ class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
         Parameters
         ----------
         other:
-            Lots of options here. Can be a ``NutritionFact``, a
-            iterable of ``NutritionFact``s, a mapping of strings
-            to ``pint.quantity.Quantity``s or another ``NutritionSet``.
+            Lots of options here. Can be a ``NutritionFact``, an
+            iterable of ``NutritionFact`` instances, a mapping of
+            strings to ``pint.quantity.Quantity``, or another
+            ``NutritionSet``.
+        merge_func: callable
+            Callable that takes in two ``NutritionFact`` instances
+            returns a single ``NutritionFact`` instance. If a key
+            in ``other`` matches a key in this ``NutritionSet``,
+            then the quantities from each will be passed through
+            ``merge_func`` before being added into the new
+            ``NutritionSet``. These two statements are equivalent:
+
+            .. code-block: python
+                NutritionFact().update(
+                    NutritionFact(),
+                    merge_func=lambda a, b: a + b
+                )
+                NutritionFact() + NutritionFact()
 
         Examples
         --------
@@ -318,28 +378,46 @@ class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
         ...     f"{my_ns['fat'].amount}"
         ... )
         10, 15, 5
+        >>> my_ns.update(
+        ...     {'sodium': glo.Q_(10, 'grams')},
+        ...     merge_func=lambda a, b: (a + b) * 2
+        ... )
+        >>> my_ns["sodium"].amount
+        40
         """
         if isinstance(other, NutritionFact):
-            self.__setitem__(other.name, other)
+            if merge_func is not None:
+                self[other.name] = merge_func(self[other.name], other)
+            else:
+                self.__setitem__(other.name, other)
         elif isinstance(other, dict):
-            # Combine kwargs with other since they're both dicts
-            other.update(kwargs)
-            for key, val in other.items():
-                if not isinstance(key, str) or not isinstance(
-                    val, ureg.Quantity
-                ):
+            for name, quantity in other.items():
+                if not isinstance(quantity, Quantity):
                     raise TypeError(
-                        "Expected Mapping[str, pint.quantity.Quantity], got: "
-                        f"{type(key)} -> {type(val)}"
+                        "Expected mapping of str -> Quantity, instead got: "
+                        f"{type(name)} -> {type(quantity)}"
                     )
-                self.__setitem__(key, val)
+                self.update(
+                    NutritionFact(name, quantity), merge_func=merge_func
+                )
         elif isinstance(other, NutritionSet):
-            for key, val in other.data.items():
-                self.__setitem__(key, val)
-        else:
-            for nut_fact in other:
-                if not isinstance(nut_fact, NutritionFact):
+            for name, nut_fact in other.data.items():
+                self.update(nut_fact, merge_func=merge_func)
+        else:  # try assuming iterable
+            try:
+                for nut_fact in other:
+                    if not isinstance(nut_fact, NutritionFact):
+                        raise TypeError(
+                            "Expected iterable to be of NutritionFact "
+                            f"instances, instead got {type(nut_fact)}"
+                        )
+                    self.update(nut_fact, merge_func=merge_func)
+            except TypeError as exception:
+                if "not iterable" in exception.args[0]:
                     raise TypeError(
-                        f"Expected NutritionFact, got: {type(nut_fact)}"
-                    )
-                self.__setitem__(nut_fact.name, nut_fact)
+                        "Expected one of NutritionFact, "
+                        "Mapping[str, Quantity] or NutritionSet, "
+                        f"instead got: {type(other)}"
+                    ) from exception
+
+                raise exception

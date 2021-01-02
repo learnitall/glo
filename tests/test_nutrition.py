@@ -163,6 +163,25 @@ def test_update_method_nutrition_set():
     assert ns["protein"].amount == 15
 
 
+def test_update_method_when_given_bad_types():
+    """Test ``NutritionSet.update`` raises ``TypeErrors`` appropriately."""
+
+    bad_params = [
+        '10',
+        10,
+        range(15),
+        glo.Q_(10, "grams"),
+        {'sodium': 15},
+        {15: glo.Q_(10, "grams")}
+    ]
+
+    ns = glo.NutritionSet()
+
+    for bad_param in bad_params:
+        with pytest.raises(TypeError):
+            ns.update(bad_param)
+
+
 def test_update_method_nutrition_set_raises_errors_on_bad_types():
     """Test that ``TypeError` is raised with ``NutritionSet.update``."""
 
@@ -180,3 +199,54 @@ def test_update_method_nutrition_set_raises_errors_on_bad_types():
     with pytest.raises(TypeError):
         ns[10] = glo.Q_(10, "grams")
         test = ns[10]
+
+
+def test_nutrition_fact_as_dict_method():
+    """Test that ``as_dict`` method returns correct dict representation."""
+
+    ns = glo.NutritionSet(
+        glo.NutritionFact("sodium", glo.Q_(10, "grams")),
+        glo.NutritionFact("fat", glo.Q_(11, "grams")),
+        glo.NutritionFact("calories", glo.Q_(100, None))
+    )
+
+    assert ns.as_dict() == {
+        "sodium": glo.Q_(10, "grams"),
+        "fat": glo.Q_(11, "grams"),
+        "calories": glo.Q_(100, None)
+    }
+
+
+def test_can_add_and_subtract_nutrition_set_instances():
+    """Test that we can add and subtract ``NutritionSet`` instances."""
+
+    ns_dict1 = {
+        'sodium': glo.Q_(10, 'milligrams'),
+        'fat': glo.Q_(15, 'grams'),
+        'protein': glo.Q_(5, 'grams')
+    }
+    ns_dict2 = {
+        'sodium': glo.Q_(5, 'grams'),
+        'fat': glo.Q_(15, 'grams'),
+        'trans fat': glo.Q_(8, 'grams')
+    }
+
+    ns1 = glo.NutritionSet()
+    ns1.update(ns_dict1)
+
+    ns2 = glo.NutritionSet()
+    ns2.update(ns_dict2)
+
+    assert (ns1 + ns2).as_dict() == {
+        'sodium': glo.Q_(5010, 'milligram'),
+        'fat': glo.Q_(30, 'grams'),
+        'protein': glo.Q_(5, 'grams'),
+        'trans fat': glo.Q_(8, 'grams')
+    }
+
+    assert (ns1 - ns2).as_dict() == {
+        'sodium': glo.Q_(-4990, 'milligram'),
+        'fat': glo.Q_(0, 'grams'),
+        'protein': glo.Q_(5, 'grams'),
+        'trans fat': glo.Q_(-8, 'grams')
+    }
