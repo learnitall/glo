@@ -212,6 +212,9 @@ class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
 
     Methods
     -------
+    as_dict:
+        Return dictionary representation of NutritionSet instance.
+        See method docstring below.
     clear:
         See ``dict.clear``.
     get:
