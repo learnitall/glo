@@ -4,9 +4,9 @@
 from typing import Mapping, Union
 
 
-class Item:
+class Product:
     """
-    Generic item a user can purchase at a store.
+    Generic product a user can purchase at a store.
 
     Parameters
     ----------
@@ -21,12 +21,12 @@ class Item:
     Attributes
     ----------
     name: str
-        Item's string name. May be human-readable or id-like.
+        Product's string name. May be human-readable or id-like.
     upc: str
         Universal Product Code for the item. If not given, will
         default to ``None``.
     price: float
-        Item cost. If not given, will default to ``None``.
+        Product cost. If not given, will default to ``None``.
 
     Methods
     -------
@@ -37,18 +37,18 @@ class Item:
     Examples
     --------
     >>> import glo
-    >>> glo.Item('my_item')
-    Product 'my_item'(None)@None
-    >>> glo.Item('my_second_item', price=15.0)
-    Product 'my_second_item'(None)@15.0
-    >>> glo.Item('my_third_item', upc='000000000000', price=10.0)
-    Product 'my_third_item'(000000000000)@10.0
+    >>> glo.Product('my_product')
+    Product 'my_product'(None)@None
+    >>> glo.Product('my_second_product', price=15.0)
+    Product 'my_second_product'(None)@15.0
+    >>> glo.Product('my_third_product', upc='000000000000', price=10.0)
+    Product 'my_third_product'(000000000000)@10.0
     """
 
     __slots__ = ["name", "upc", "price"]
 
     def __init__(self, name: str, upc: str = None, price: float = None):
-        """Item constructor."""
+        """Product constructor."""
 
         self.name = name
         self.upc = upc
@@ -59,16 +59,16 @@ class Item:
 
     def as_dict(self) -> Mapping[str, Union[str, float]]:
         """
-        Return dictionary representation of the item.
+        Return dictionary representation of the product.
 
         Dictionary contains documented attributes and their values.
 
         Examples
         --------
         >>> import glo
-        >>> my_item = glo.Item('my_item', '1337000012340000', 0.50)
-        >>> my_item.as_dict()
-        {'name': 'my_item', 'upc': '1337000012340000', 'price': 0.5}
+        >>> my_product = glo.Product('my_product', '1337000012340000', 0.50)
+        >>> my_product.as_dict()
+        {'name': 'my_product', 'upc': '1337000012340000', 'price': 0.5}
         """
 
         return {"name": self.name, "upc": self.upc, "price": self.price}

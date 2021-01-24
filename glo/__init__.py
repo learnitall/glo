@@ -3,5 +3,5 @@
 # flake8: noqa: F401
 """glo: Grocery List Optimizer."""
 from ._ureg import ureg, Q_
-from .item import Item
+from .product import Product
 from .nutrition import NutritionFact, NutritionSet
