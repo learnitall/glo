@@ -1,2 +1,36 @@
 [tool.black]
 line-length = 79
+
+[tool.poetry]
+name = "glo"
+version = "0.1.0"
+description = "Grocery List Optimizer"
+authors = ["Ryan Drew <ryan@thedrews.org>"]
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/learnitall/glo"
+documentation = "https://glo.readthedocs.io/en/latest/"
+include =  ["LICENSE"]
+
+[tool.poetry.dependencies]
+python = "^3.6"
+pint = "*"
+pytest = { version = "*", optional = true }
+pytest-cov = { version = "*", optional = true }
+sphinx = { version = "*", optional = true }
+numpydoc = { version = "*", optional = true }
+flake8 = { version = "*", optional = true }
+pylint = { version = "*", optional = true }
+black = { version = "*", optional = true }
+
+[tool.poetry.dev-dependencies]
+tox = "*"
+
+[tool.poetry.extras]
+test = ["pytest", "pytest-cov"]
+docs = ["sphinx", "numpydoc"]
+lint = ["flake8", "pylint", "black"]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
