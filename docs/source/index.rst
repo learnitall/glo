@@ -13,7 +13,7 @@ Welcome to glo's documentation!
 .. automodule:: glo.nutrition
    :members:
 
-.. automodule:: glo.item
+.. automodule:: glo.product
    :members:
 
 Indices and tables
