@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath('../../'))
 # -- Project information -----------------------------------------------------
 
 project = 'glo'
-copyright = '2020, Ryan Drew'
+copyright = '2021, Ryan Drew'
 author = 'Ryan Drew'
 
 # The full version, including alpha/beta/rc tags
