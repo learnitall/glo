@@ -10,7 +10,7 @@ from ..items import *
 class KingSooperSpider(SitemapSpider):
     """Scape King Sooper's website using their sitemaps."""
 
-    name = 'kingsoopers.com'
+    name = 'kingsoopers'
     allowed_domains = ['kingsoopers.com']
     sitemap_urls = ['https://www.kingsoopers.com/product-details-sitemap.xml']
 
