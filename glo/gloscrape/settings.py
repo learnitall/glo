@@ -1,19 +1,22 @@
-# Scrapy settings for tutorial project
-#
-# For simplicity, this file contains only settings considered important or
-# commonly used. You can find more settings consulting the documentation:
-#
-#     https://docs.scrapy.org/en/latest/topics/settings.html
-#     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-#     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
+"""
+Scrapy settings for tutorial project
 
-BOT_NAME = 'gloscrape'
+For simplicity, this file contains only settings considered important or
+commonly used. You can find more settings consulting the documentation:
 
-SPIDER_MODULES = ['gloscrape.spiders']
-NEWSPIDER_MODULE = 'gloscrape.spiders'
+     https://docs.scrapy.org/en/latest/topics/settings.html
+     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
+     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
+"""
+
+BOT_NAME = "gloscrape"
+
+SPIDER_MODULES = ["gloscrape.spiders"]
+NEWSPIDER_MODULE = "gloscrape.spiders"
 
 
-# Crawl responsibly by identifying yourself (and your website) on the user-agent
+# Crawl responsibly by identifying yourself
+# (and your website) on the user-agent
 # USER_AGENT = 'glo (+https://github.com/learnitall/glo)'
 
 # Obey robots.txt rules
@@ -38,7 +41,8 @@ TELNETCONSOLE_ENABLED = False
 
 # Override the default request headers:
 # DEFAULT_REQUEST_HEADERS = {
-#   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+#   'Accept': 'text/html,application/xhtml+xml,'
+#             'application/xml;q=0.9,*/*;q=0.8',
 #   'Accept-Language': 'en',
 # }
 
@@ -50,13 +54,13 @@ TELNETCONSOLE_ENABLED = False
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 DOWNLOADER_MIDDLEWARES = {
     # https://www.zyte.com/blog/scrapy-proxy/
-    'gloscrape.middlewares.LuminatiProxyManagerMiddleware': 100,
-    'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': 200,
+    "gloscrape.middlewares.LuminatiProxyManagerMiddleware": 100,
+    "scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware": 200,
     # https://coderslegacy.com/python/scrapy-user-agents/
-    'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,
-    'gloscrape.middlewares.RandomUserAgentMiddleware': 400,
+    "scrapy.downloadermiddlewares.useragent.UserAgentMiddleware": None,
+    "gloscrape.middlewares.RandomUserAgentMiddleware": 400,
 }
-RANDOM_UA_TYPE = 'desktop.random'
+RANDOM_UA_TYPE = "desktop.random"
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
 # EXTENSIONS = {
@@ -81,7 +85,6 @@ AUTOTHROTTLE_TARGET_CONCURRENCY = 1.0
 # AUTOTHROTTLE_DEBUG = False
 
 # Enable and configure HTTP caching (disabled by default)
-# See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html#httpcache-middleware-settings
 # HTTPCACHE_ENABLED = True
 # HTTPCACHE_EXPIRATION_SECS = 0
 # HTTPCACHE_DIR = 'httpcache'
