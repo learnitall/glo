@@ -38,7 +38,7 @@ class KingSooperSpider(SitemapSpider):
             'serving',
             # returns ['serving size', '<serving size val']
             response.css('.NutritionLabel-ServingSize').xpath(
-                './span/text()').getall()[-1],
+                './span[2]/text()').getall(),
         )
         loader.add_value('nutrition', dict(
             zip(
