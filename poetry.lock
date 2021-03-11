@@ -727,17 +727,6 @@ w3lib = ">=1.17.0"
 "zope.interface" = ">=4.1.3"
 
 [[package]]
-name = "scrapy-user-agents"
-version = "0.1.1"
-description = "Automatically pick an User-Agent for every request"
-category = "main"
-optional = false
-python-versions = "*"
-
-[package.dependencies]
-user-agents = "*"
-
-[[package]]
 name = "service-identity"
 version = "18.1.0"
 description = "Service identity verification for pyOpenSSL & cryptography."
@@ -1065,7 +1054,7 @@ test = ["pytest", "pytest-cov"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "0d26e9aef02956f9868cf0a9a011014723eb986b845bd614d43748e5cf822281"
+content-hash = "f4a6774781f2a50f6a20c1250c6d252177dc2769bb149fce876cc20b767d01d6"
 
 [metadata.files]
 alabaster = [
@@ -1562,10 +1551,6 @@ requests = [
 scrapy = [
     {file = "Scrapy-2.4.1-py2.py3-none-any.whl", hash = "sha256:27621ab491706ec8cc41168cdbdff07e7fe8c344c8640e9e9faebd7cf84008e2"},
     {file = "Scrapy-2.4.1.tar.gz", hash = "sha256:68c48f01a58636bdf0f6fcd5035a19ecf277b58af24bd70c36dc6e556df3e005"},
-]
-scrapy-user-agents = [
-    {file = "scrapy_user_agents-0.1.1-py2.py3-none-any.whl", hash = "sha256:284c9af555f3128697a2953ab3cdb987b160b091a12896562d969cf9e81d1350"},
-    {file = "scrapy_user_agents-0.1.1.win-amd64.zip", hash = "sha256:aa1f78c8cbae42f1a7159c5ea16c2638ac17e78d7d44111d164ed099ec48705f"},
 ]
 service-identity = [
     {file = "service_identity-18.1.0-py2.py3-none-any.whl", hash = "sha256:001c0707759cb3de7e49c078a7c0c9cd12594161d3bf06b9c254fdcb1a60dc36"},

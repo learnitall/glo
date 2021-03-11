@@ -23,7 +23,7 @@ flake8 = { version = "*", optional = true }
 pylint = { version = "*", optional = true }
 black = { version = "*", optional = true }
 Scrapy = "^2.4.1"
-scrapy-user-agents = "^0.1.1"
+user-agents = "^2.2.0"
 
 [tool.poetry.dev-dependencies]
 tox = "*"

@@ -54,7 +54,7 @@ DOWNLOADER_MIDDLEWARES = {
     'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': 200,
     # https://coderslegacy.com/python/scrapy-user-agents/
     'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,
-    'scrapy_user_agents.middlewares.RandomUserAgentMiddleware': 400,
+    'gloscrape.middlewares.RandomUserAgentMiddleware': 400,
 }
 RANDOM_UA_TYPE = 'desktop.random'
 # Enable or disable extensions
