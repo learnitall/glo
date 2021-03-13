@@ -78,7 +78,8 @@ class KingSooperSpider(SitemapSpider):
         """Kick off spider by adding splash integration."""
         requests = list(super(KingSooperSpider, self).start_requests())
         for r in requests:
-            r["meta"]["splash"] = KS_SPLASH_ARGS
+            r.meta["splash"] = KS_SPLASH_ARGS
+        return requests
 
     def parse(self, response, **kwargs):
         """Parse product page into a ``KingSooperProduct``."""
