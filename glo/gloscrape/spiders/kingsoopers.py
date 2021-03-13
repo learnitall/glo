@@ -6,6 +6,16 @@ Scrapy Spider for pulling products off of King Sooper's website.
 from scrapy.spiders import SitemapSpider
 from ..items import KingSooperProductLoader, KingSooperProduct
 
+KS_SPLASH_ARGS = {
+    "args": {
+        "images": 0,
+        "allowed_domains": "kingsoopers.com",
+        "wait": 10,
+        "timeout": 30
+    },
+    "endpoint": "render.html"
+}
+
 
 class KingSooperSpider(SitemapSpider):
     """Scape King Sooper's website using their sitemaps."""
@@ -13,6 +23,8 @@ class KingSooperSpider(SitemapSpider):
     name = "kingsoopers"
     allowed_domains = ["kingsoopers.com"]
     sitemap_urls = ["https://www.kingsoopers.com/product-details-sitemap.xml"]
+    user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) " \
+                 "AppleWebKit/601.3.9 (KHTML, like Gecko) Version/9.0.2 Safari/601.3.9"
 
     def __parse_response(self, response):
         loader = KingSooperProductLoader(
@@ -61,6 +73,12 @@ class KingSooperSpider(SitemapSpider):
         self.logger.debug(f"Parsed item: {item}")
 
         return item
+
+    def start_requests(self):
+        """Kick off spider by adding splash integration."""
+        requests = list(super(KingSooperSpider, self).start_requests())
+        for r in requests:
+            r["meta"]["splash"] = KS_SPLASH_ARGS
 
     def parse(self, response, **kwargs):
         """Parse product page into a ``KingSooperProduct``."""
