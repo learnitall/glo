@@ -28,13 +28,13 @@ ROBOTSTXT_OBEY = True
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 5
+# DOWNLOAD_DELAY = 5
 # The download delay setting will honor only one of:
-CONCURRENT_REQUESTS_PER_DOMAIN = 1
+# CONCURRENT_REQUESTS_PER_DOMAIN = 1
 # CONCURRENT_REQUESTS_PER_IP = 16
 
 # Disable cookies (enabled by default)
-COOKIES_ENABLED = False
+COOKIES_ENABLED = True
 
 # Disable Telnet Console (enabled by default)
 TELNETCONSOLE_ENABLED = False
@@ -82,16 +82,16 @@ AUTOTHROTTLE_TARGET_CONCURRENCY = 1.0
 # Enable showing throttling stats for every response received:
 # AUTOTHROTTLE_DEBUG = False
 
-# Enable and configure HTTP caching (disabled by default)
-# HTTPCACHE_ENABLED = True
-# HTTPCACHE_EXPIRATION_SECS = 0
-# HTTPCACHE_DIR = 'httpcache'
-# HTTPCACHE_IGNORE_HTTP_CODES = []
-# HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
-
 RETRY_ENABLED = True
 RETRY_TIMES = 2  # initial response + 2 retries = 3 requests
 RETRY_HTTP_CODES = [500, 502, 503, 504, 522, 524, 408, 429, 403]
+
+# Enable and configure HTTP caching (disabled by default)
+HTTPCACHE_ENABLED = True
+# HTTPCACHE_EXPIRATION_SECS = 0
+HTTPCACHE_DIR = 'httpcache'
+HTTPCACHE_IGNORE_HTTP_CODES = RETRY_HTTP_CODES
+# HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 
 SPLASH_URL = "http://127.0.0.1:8050"
 DUPEFILTER_CLASS = "scrapy_splash.SplashAwareFilter"
