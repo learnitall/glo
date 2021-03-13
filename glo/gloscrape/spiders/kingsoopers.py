@@ -5,7 +5,7 @@ Scrapy Spider for pulling products off of King Sooper's website.
 """
 import os
 from scrapy.spiders import Spider
-from scrapy_splash import SplashRequest
+from scrapy.http import Request
 from ..items import KingSooperProductLoader, KingSooperProduct
 
 
@@ -24,7 +24,7 @@ class KingSooperSpider(Spider):
     splash_args = {
         "args": {
             "images": 0,
-            "wait": 1,
+            "wait": 2,
             "timeout": 30
         },
         "endpoint": "render.html"
@@ -57,7 +57,7 @@ class KingSooperSpider(Spider):
                 if not line:
                     break
                 elif line.startswith("https"):
-                    yield SplashRequest(line, self.parse, args=self.splash_args)
+                    yield Request(line, self.parse)
 
     def __parse_response(self, response):
         loader = KingSooperProductLoader(
@@ -111,12 +111,14 @@ class KingSooperSpider(Spider):
         """Parse product page into a ``KingSooperProduct``."""
 
         url = response.url
-        self.logger.debug(f"Got url {url}")
-        with open("file.html", "wb") as f:
-            f.write(response.body)
-        if len(response.css(".Nutrition")) == 0:
+        una = response.css(".kds-Heading--xl::text").get()
+        nut = response.css(".Nutrition").get()
+        if una is None or (una is not None and "unavailable" in una):
+            self.logger.debug(f"Skipping url (unavailable): {url}")
+            yield None
+        elif nut is None or (nut is not None and len(nut) == 0):
             self.logger.debug(f"Skipping url (no nutrition info): {url}")
+            yield None
         else:
             self.logger.info(f"Parsing url {url}")
-
             yield self.__parse_response(response)
