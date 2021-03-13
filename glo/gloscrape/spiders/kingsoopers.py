@@ -3,28 +3,61 @@
 """
 Scrapy Spider for pulling products off of King Sooper's website.
 """
-from scrapy.spiders import SitemapSpider
+import os
+from scrapy.spiders import Spider
+from scrapy_splash import SplashRequest
 from ..items import KingSooperProductLoader, KingSooperProduct
 
-KS_SPLASH_ARGS = {
-    "args": {
-        "images": 0,
-        "allowed_domains": "kingsoopers.com",
-        "wait": 10,
-        "timeout": 30
-    },
-    "endpoint": "render.html"
-}
 
+class KingSooperSpider(Spider):
+    """
+    Scape King Sooper's website using their sitemaps.
 
-class KingSooperSpider(SitemapSpider):
-    """Scape King Sooper's website using their sitemaps."""
+    King Soopers has some really good software for blocking requests.
+    Requires Splash for JS rendering, a good VPN, and some curl magic.
+    """
 
     name = "kingsoopers"
     allowed_domains = ["kingsoopers.com"]
-    sitemap_urls = ["https://www.kingsoopers.com/product-details-sitemap.xml"]
     user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) " \
                  "AppleWebKit/601.3.9 (KHTML, like Gecko) Version/9.0.2 Safari/601.3.9"
+    splash_args = {
+        "args": {
+            "images": 0,
+            "wait": 1,
+            "timeout": 30
+        },
+        "endpoint": "render.html"
+    }
+
+    def start_requests(self):
+        """
+        Pull URLs from sitemap file.
+
+        King Soopers has quite the intense WAF, which means that we
+        need to use splash for JS rendering. Splash unfortunately is
+        having trouble reaching the sitemaps for King Soopers. Our
+        approach is to therefor download the sitemaps ahead of time,
+        (which is nice since now they are cached and stored on disk
+        rather than memory), then manually go through and start our
+        requests.
+
+        Expects the argument ``kssm`` to be set from the command-line
+        """
+
+        sitemap_file = getattr(self, "kssm", None)  # set from cli
+        if sitemap_file is None:
+            raise ValueError(
+                "Need kssm argument to be set to sitemap file."
+            )
+        with open(os.path.abspath(sitemap_file), "r") as smfile:
+            while True:
+                # strip whitespace and then loc tags
+                line = smfile.readline().strip().strip("<loc>")
+                if not line:
+                    break
+                elif line.startswith("https"):
+                    yield SplashRequest(line, self.parse, args=self.splash_args)
 
     def __parse_response(self, response):
         loader = KingSooperProductLoader(
@@ -74,20 +107,15 @@ class KingSooperSpider(SitemapSpider):
 
         return item
 
-    def start_requests(self):
-        """Kick off spider by adding splash integration."""
-        requests = list(super(KingSooperSpider, self).start_requests())
-        for r in requests:
-            r.meta["splash"] = KS_SPLASH_ARGS
-        return requests
-
     def parse(self, response, **kwargs):
         """Parse product page into a ``KingSooperProduct``."""
 
         url = response.url
         self.logger.debug(f"Got url {url}")
+        with open("file.html", "wb") as f:
+            f.write(response.body)
         if len(response.css(".Nutrition")) == 0:
-            self.logger.debug(f"Skipping url (not food): {url}")
+            self.logger.debug(f"Skipping url (no nutrition info): {url}")
         else:
             self.logger.info(f"Parsing url {url}")
 

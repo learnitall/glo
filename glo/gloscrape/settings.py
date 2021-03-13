@@ -20,7 +20,7 @@ NEWSPIDER_MODULE = "gloscrape.spiders"
 # USER_AGENT = 'glo (+https://github.com/learnitall/glo)'
 
 # Obey robots.txt rules
-ROBOTSTXT_OBEY = True
+ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 # CONCURRENT_REQUESTS = 32
@@ -57,7 +57,8 @@ SPIDER_MIDDLEWARES = {
 DOWNLOADER_MIDDLEWARES = {
     "scrapy_splash.SplashCookiesMiddleware": 723,
     "scrapy_splash.SplashMiddleware": 725,
-    "scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware": 810
+    "gloscrape.middlewares.SplashRequestMiddleware": 722,
+    "scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware": 810,
 }
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
@@ -95,4 +96,6 @@ HTTPCACHE_IGNORE_HTTP_CODES = RETRY_HTTP_CODES
 
 SPLASH_URL = "http://127.0.0.1:8050"
 DUPEFILTER_CLASS = "scrapy_splash.SplashAwareDupeFilter"
+DUPEFILTER_DEBUG = True
 HTTPCACHE_STORAGE = "scrapy_splash.SplashAwareFSCacheStorage"
+REFERER_ENABLED = False
