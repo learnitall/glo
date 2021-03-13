@@ -53,7 +53,8 @@ class KingSooperSpider(Spider):
         with open(os.path.abspath(sitemap_file), "r") as smfile:
             while True:
                 # strip whitespace and then loc tags
-                line = smfile.readline().strip().strip("<loc>")
+                line = smfile.readline().strip().lstrip("<loc>").rstrip(
+                    "</loc>")
                 if not line:
                     break
                 elif line.startswith("https"):
