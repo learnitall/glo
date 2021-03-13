@@ -64,7 +64,7 @@ class KingSooperSpider(Spider):
         loader = KingSooperProductLoader(
             item=KingSooperProduct(), response=response
         )
-        loader.add_value("url", response.url)
+        loader.add_css("url", 'link[rel="canonical"]::attr(href)')
         loader.add_css("name", ".ProductDetails-header::text")
         loader.add_css("upc", ".ProductDetails-upc::text")
         loader.add_css("weight", ".ProductDetails-sellBy::text")
