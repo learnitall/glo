@@ -126,6 +126,7 @@ class WindscribeMiddleware:
     def process_request(self, request, spider):
         """Set user agent header and meta for current vpn."""
         request.headers.setdefault(b"User-Agent", self.user_agent)
+        request.headers[b"User-Agent"] = self.user_agent
         request.meta["vpn-tag"] = self.vpn_tag
 
     def process_response(self, request, response, spider):
@@ -139,15 +140,16 @@ class WindscribeMiddleware:
                 self._windscribe_reconnect()
                 self.user_agent = next(self.user_agents)
                 self.logger.debug("Setting user-agent to '%s'", self.user_agent)
+
                 request.headers.setdefault(b"User-Agent", self.user_agent)
-                return response.replace(status=403)
-            else:
-                self.logger.info(
-                    "Retrying access denied with updated vpn for '%s'",
-                    request.url
-                )
-                r = request.copy()
-                r.meta["vpn-tag"] = self.vpn_tag
-                return r
+
+            self.logger.info(
+                "Retrying access denied with updated vpn for '%s'",
+                request.url
+            )
+            request.headers[b"User-Agent"] = self.user_agent
+            r = request.copy()
+            r.meta["vpn-tag"] = self.vpn_tag
+            return r
 
         return response
