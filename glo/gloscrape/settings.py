@@ -48,13 +48,13 @@ TELNETCONSOLE_ENABLED = False
 
 # Enable or disable spider middlewares
 # See https://docs.scrapy.org/en/latest/topics/spider-middleware.html
-SPIDER_MIDDLEWARES = {
-    "scrapy_splash.SplashDeduplicateArgsMiddleware": 100
-}
+SPIDER_MIDDLEWARES = {"scrapy_splash.SplashDeduplicateArgsMiddleware": 100}
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 DOWNLOADER_MIDDLEWARES = {
+    "scrapy.downloadermiddlewares.useragent.UserAgentMiddleware": None,
+    "gloscrape.middlewares.WindscribeMiddleware": 560,
     "scrapy_splash.SplashCookiesMiddleware": 723,
     "scrapy_splash.SplashMiddleware": 725,
     "gloscrape.middlewares.SplashRequestMiddleware": 722,
@@ -84,13 +84,13 @@ AUTOTHROTTLE_TARGET_CONCURRENCY = 3.0
 # AUTOTHROTTLE_DEBUG = False
 
 RETRY_ENABLED = True
-RETRY_TIMES = 2  # initial response + 2 retries = 3 requests
+RETRY_TIMES = 4  # initial response + 4 retries = 5 requests
 RETRY_HTTP_CODES = [500, 502, 503, 504, 522, 524, 408, 429, 403]
 
 # Enable and configure HTTP caching (disabled by default)
 HTTPCACHE_ENABLED = True
 # HTTPCACHE_EXPIRATION_SECS = 0
-HTTPCACHE_DIR = 'httpcache'
+HTTPCACHE_DIR = "httpcache"
 HTTPCACHE_IGNORE_HTTP_CODES = RETRY_HTTP_CODES
 # HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 
@@ -99,3 +99,7 @@ DUPEFILTER_CLASS = "scrapy_splash.SplashAwareDupeFilter"
 DUPEFILTER_DEBUG = True
 HTTPCACHE_STORAGE = "scrapy_splash.SplashAwareFSCacheStorage"
 REFERER_ENABLED = False
+
+# Parsed from https://github.com/tamimibrahim17/List-of-user-agents
+USER_AGENT_FILE = "gloscrape/extra/uas.txt"
+WS_VPN_LIST_FILE = "gloscrape/extra/windscribe-akamai.txt"

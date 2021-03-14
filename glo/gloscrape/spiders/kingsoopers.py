@@ -4,6 +4,7 @@
 Scrapy Spider for pulling products off of King Sooper's website.
 """
 import os
+from twisted.internet.error import ConnectionRefusedError
 from scrapy.spiders import Spider
 from scrapy.http import Request
 from ..items import KingSooperProductLoader, KingSooperProduct
@@ -19,15 +20,13 @@ class KingSooperSpider(Spider):
 
     name = "kingsoopers"
     allowed_domains = ["kingsoopers.com"]
-    user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) " \
-                 "AppleWebKit/601.3.9 (KHTML, like Gecko) Version/9.0.2 Safari/601.3.9"
+    user_agent = (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) "
+        "AppleWebKit/601.3.9 (KHTML, like Gecko) Version/9.0.2 Safari/601.3.9"
+    )
     splash_args = {
-        "args": {
-            "images": 0,
-            "wait": 2,
-            "timeout": 30
-        },
-        "endpoint": "render.html"
+        "args": {"images": 0, "wait": 2, "timeout": 30},
+        "endpoint": "render.html",
     }
 
     def start_requests(self):
@@ -47,14 +46,13 @@ class KingSooperSpider(Spider):
 
         sitemap_file = getattr(self, "kssm", None)  # set from cli
         if sitemap_file is None:
-            raise ValueError(
-                "Need kssm argument to be set to sitemap file."
-            )
+            raise ValueError("Need kssm argument to be set to sitemap file.")
         with open(os.path.abspath(sitemap_file), "r") as smfile:
             while True:
                 # strip whitespace and then loc tags
-                line = smfile.readline().strip().lstrip("<loc>").rstrip(
-                    "</loc>")
+                line = (
+                    smfile.readline().strip().lstrip("<loc>").rstrip("</loc>")
+                )
                 if not line:
                     break
                 elif line.startswith("https"):
@@ -111,9 +109,13 @@ class KingSooperSpider(Spider):
     def parse(self, response, **kwargs):
         """Parse product page into a ``KingSooperProduct``."""
 
-        url = response.url
+        if response.css("title::text").get() == "Access Denied":
+            raise ConnectionRefusedError("Access Denied")
         una = response.css(".kds-Heading--xl::text").get()
         nut = response.css(".Nutrition").get()
+        # use request url to ensure we get the right one
+        # sometimes splash returns things out of order
+        url = response.request.url
         if una is None or (una is not None and "unavailable" in una):
             self.logger.debug(f"Skipping url (unavailable): {url}")
             yield None
