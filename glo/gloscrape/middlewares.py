@@ -7,6 +7,7 @@ import random
 import shutil
 import shlex
 import subprocess
+import uuid
 from scrapy import signals
 
 
@@ -53,6 +54,7 @@ class WindscribeMiddleware:
     def __init__(self, ua_file: str, vpn_file: str):
         self.user_agents = self._get_line_generator(ua_file)
         self.vpns = self._get_line_generator(vpn_file)
+        self.vpn_tag = uuid.uuid4()
         self.user_agent = next(self.user_agents)
 
     @classmethod
@@ -111,6 +113,7 @@ class WindscribeMiddleware:
                 raise ValueError(f"Unexpected output {res_stdout}")
             out = "{} ({})".format(*res_stdout.split("\n")[-2:])
             self.logger.debug("Successfully reconnected to windscribe: %s", out)
+            self.vpn_tag = uuid.uuid4()
 
         except (subprocess.CalledProcessError, ValueError) as e:
             self.logger.warning("Unable to reconnect to windscribe: %s", e)
@@ -121,8 +124,9 @@ class WindscribeMiddleware:
                 raise ValueError("Unable to reconnect to windscribe: %s", e)
 
     def process_request(self, request, spider):
-        """Set user agent header."""
+        """Set user agent header and meta for current vpn."""
         request.headers.setdefault(b"User-Agent", self.user_agent)
+        request.meta["vpn-tag"] = self.vpn_tag
 
     def process_response(self, request, response, spider):
         """On access denied, try to reconnect to windscribe."""
@@ -130,11 +134,20 @@ class WindscribeMiddleware:
         if response.css("title::text").get() == "Access Denied" \
                 or response.status == 504 \
                 or response.status == 403:
-            self.logger.info("Got Access Denied for %s", request.url)
-            self._windscribe_reconnect()
-            self.user_agent = next(self.user_agents)
-            self.logger.debug("Setting user-agent to '%s'", self.user_agent)
-            request.headers.setdefault(b"User-Agent", self.user_agent)
-            return response.replace(status=403)
+            if request.meta["vpn-tag"] == self.vpn_tag:
+                self.logger.info("Got Access Denied for %s", request.url)
+                self._windscribe_reconnect()
+                self.user_agent = next(self.user_agents)
+                self.logger.debug("Setting user-agent to '%s'", self.user_agent)
+                request.headers.setdefault(b"User-Agent", self.user_agent)
+                return response.replace(status=403)
+            else:
+                self.logger.info(
+                    "Retrying access denied with updated vpn for '%s'",
+                    request.url
+                )
+                r = request.copy()
+                r.meta["vpn-tag"] = self.vpn_tag
+                return r
 
         return response
