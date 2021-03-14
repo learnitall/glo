@@ -98,7 +98,7 @@ class WindscribeMiddleware:
 
         try:
             vpn = next(self.vpns)
-            cmd = shlex.split(f"{shutil.which('windscribe')} connect {vpn}")
+            cmd = shlex.split(f"{shutil.which('windscribe')} connect '{vpn}'")
             self.logger.debug(f"Executing {cmd}")
             result = subprocess.run(cmd, capture_output=True, check=True)
             # Expecting last two lines of output to be:
