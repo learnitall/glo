@@ -102,7 +102,6 @@ class KingSooperSpider(Spider):
         )
 
         item = loader.load_item()
-        self.logger.debug(f"Parsed item: {item}")
 
         return item
 
