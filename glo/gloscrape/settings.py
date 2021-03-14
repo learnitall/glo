@@ -101,5 +101,5 @@ HTTPCACHE_STORAGE = "scrapy_splash.SplashAwareFSCacheStorage"
 REFERER_ENABLED = False
 
 # Parsed from https://github.com/tamimibrahim17/List-of-user-agents
-USER_AGENT_FILE = "gloscrape/extra/uas.txt"
+USER_AGENT_FILE = "gloscrape/extra/uas-small.txt"
 WS_VPN_LIST_FILE = "gloscrape/extra/windscribe-akamai.txt"
