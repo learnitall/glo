@@ -25,7 +25,7 @@ class KingSooperSpider(Spider):
         "AppleWebKit/601.3.9 (KHTML, like Gecko) Version/9.0.2 Safari/601.3.9"
     )
     splash_args = {
-        "args": {"images": 0, "wait": 2, "timeout": 30},
+        "args": {"images": 0, "wait": 5, "timeout": 60},
         "endpoint": "render.html",
     }
 
