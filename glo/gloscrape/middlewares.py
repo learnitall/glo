@@ -67,26 +67,21 @@ class WindscribeMiddleware:
 
     @staticmethod
     def _get_line_generator(file_path):
-        """
-        Return generator that yields random lines from given file.
-
-        Follows the following: http://metadatascience.com/2014/02/27/random-sampling-from-very-large-files/
-        (under algorithm 3).
-        """
+        """Return generator that yields random lines from given file."""
 
         def get_rand_line():
-            with open(file_path, "r") as fp:
+            with open(file_path, "r") as f_obj:
                 while True:
-                    fp.seek(0, 2)
-                    filesize = fp.tell()
+                    f_obj.seek(0, 2)
+                    filesize = f_obj.tell()
 
                     random_line = random.randint(0, filesize)
-                    fp.seek(random_line)
-                    fp.readline()  # might be in middle of line
-                    result = fp.readline()
+                    f_obj.seek(random_line)
+                    f_obj.readline()  # might be in middle of line
+                    result = f_obj.readline()
                     if len(result) == 0:  # might have ended up at EOF
-                        fp.seek(0)
-                        result = fp.readline()
+                        f_obj.seek(0)
+                        result = f_obj.readline()
                     yield result.strip()
 
         return get_rand_line()
@@ -95,7 +90,7 @@ class WindscribeMiddleware:
         """Reconnect windscribe though the CLI."""
 
         self.logger.debug(
-            "Reconnecting to windscribe with %s retries", retries,
+            "Reconnecting to windscribe with %s retries", retries
         )
 
         try:
@@ -112,44 +107,55 @@ class WindscribeMiddleware:
             ):
                 raise ValueError(f"Unexpected output {res_stdout}")
             out = "{} ({})".format(*res_stdout.split("\n")[-2:])
-            self.logger.debug("Successfully reconnected to windscribe: %s", out)
+            self.logger.debug(
+                "Successfully reconnected to windscribe: %s", out
+            )
             self.vpn_tag = uuid.uuid4()
 
-        except (subprocess.CalledProcessError, ValueError) as e:
-            self.logger.warning("Unable to reconnect to windscribe: %s", e)
+        except (subprocess.CalledProcessError, ValueError) as exception:
+            self.logger.warning(
+                "Unable to reconnect to windscribe: %s", exception
+            )
             if retries != 0:
                 self.logger.warning("Retrying...")
                 self._windscribe_reconnect(retries=retries - 1)
             else:
-                raise ValueError("Unable to reconnect to windscribe: %s", e)
+                raise RuntimeError(
+                    f"Unable to reconnect to windscribe: {exception}"
+                ) from exception
 
+    # pylint: disable=unused-argument
     def process_request(self, request, spider):
         """Set user agent header and meta for current vpn."""
         request.headers.setdefault(b"User-Agent", self.user_agent)
         request.headers[b"User-Agent"] = self.user_agent
         request.meta["vpn-tag"] = self.vpn_tag
 
+    # pylint: disable=unused-argument
     def process_response(self, request, response, spider):
         """On access denied, try to reconnect to windscribe."""
 
-        if response.css("title::text").get() == "Access Denied" \
-                or response.status == 504 \
-                or response.status == 403:
+        if (
+            response.css("title::text").get() == "Access Denied"
+            or response.status == 504
+            or response.status == 403
+        ):
             if request.meta["vpn-tag"] == self.vpn_tag:
                 self.logger.info("Got Access Denied for %s", request.url)
                 self._windscribe_reconnect()
                 self.user_agent = next(self.user_agents)
-                self.logger.debug("Setting user-agent to '%s'", self.user_agent)
+                self.logger.debug(
+                    "Setting user-agent to '%s'", self.user_agent
+                )
 
                 request.headers.setdefault(b"User-Agent", self.user_agent)
 
             self.logger.info(
-                "Retrying access denied with updated vpn for '%s'",
-                request.url
+                "Retrying access denied with updated vpn for '%s'", request.url
             )
             request.headers[b"User-Agent"] = self.user_agent
-            r = request.copy()
-            r.meta["vpn-tag"] = self.vpn_tag
-            return r
+            new_req = request.copy()
+            new_req.meta["vpn-tag"] = self.vpn_tag
+            return new_req
 
         return response

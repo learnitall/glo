@@ -4,7 +4,6 @@
 Scrapy Spider for pulling products off of King Sooper's website.
 """
 import os
-from twisted.internet.error import ConnectionRefusedError
 from scrapy.spiders import Spider
 from scrapy.http import Request
 from ..items import KingSooperProductLoader, KingSooperProduct
@@ -53,12 +52,13 @@ class KingSooperSpider(Spider):
                 line = (
                     smfile.readline().strip().lstrip("<loc>").rstrip("</loc>")
                 )
-                if not line:
-                    break
-                elif line.startswith("https"):
+                if line.startswith("https"):
                     yield Request(line, self.parse)
+                elif not line:
+                    break
 
-    def __parse_response(self, response):
+    @staticmethod
+    def __parse_response(response):
         loader = KingSooperProductLoader(
             item=KingSooperProduct(), response=response
         )

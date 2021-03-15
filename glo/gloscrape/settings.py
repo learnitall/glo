@@ -14,7 +14,6 @@ BOT_NAME = "gloscrape"
 SPIDER_MODULES = ["gloscrape.spiders"]
 NEWSPIDER_MODULE = "gloscrape.spiders"
 
-
 # Crawl responsibly by identifying yourself
 # (and your website) on the user-agent
 # USER_AGENT = 'glo (+https://github.com/learnitall/glo)'
@@ -58,7 +57,7 @@ DOWNLOADER_MIDDLEWARES = {
     "scrapy_splash.SplashCookiesMiddleware": 723,
     "scrapy_splash.SplashMiddleware": 725,
     "gloscrape.middlewares.SplashRequestMiddleware": 722,
-    "scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware": 810,
+    "scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware": 810,  # noqa: E501
 }
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
