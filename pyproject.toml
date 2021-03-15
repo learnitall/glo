@@ -24,6 +24,7 @@ pylint = { version = "*", optional = true }
 black = { version = "*", optional = true }
 Scrapy = "^2.4.1"
 user-agents = "^2.2.0"
+scrapy-splash = "^0.7.2"
 
 [tool.poetry.dev-dependencies]
 tox = "*"

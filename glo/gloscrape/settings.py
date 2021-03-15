@@ -14,13 +14,12 @@ BOT_NAME = "gloscrape"
 SPIDER_MODULES = ["gloscrape.spiders"]
 NEWSPIDER_MODULE = "gloscrape.spiders"
 
-
 # Crawl responsibly by identifying yourself
 # (and your website) on the user-agent
 # USER_AGENT = 'glo (+https://github.com/learnitall/glo)'
 
 # Obey robots.txt rules
-ROBOTSTXT_OBEY = True
+ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 # CONCURRENT_REQUESTS = 32
@@ -28,13 +27,13 @@ ROBOTSTXT_OBEY = True
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 5
+# DOWNLOAD_DELAY = 5
 # The download delay setting will honor only one of:
-CONCURRENT_REQUESTS_PER_DOMAIN = 1
+# CONCURRENT_REQUESTS_PER_DOMAIN = 1
 # CONCURRENT_REQUESTS_PER_IP = 16
 
 # Disable cookies (enabled by default)
-COOKIES_ENABLED = False
+COOKIES_ENABLED = True
 
 # Disable Telnet Console (enabled by default)
 TELNETCONSOLE_ENABLED = False
@@ -48,19 +47,18 @@ TELNETCONSOLE_ENABLED = False
 
 # Enable or disable spider middlewares
 # See https://docs.scrapy.org/en/latest/topics/spider-middleware.html
-# SPIDER_MIDDLEWARES = {}
+SPIDER_MIDDLEWARES = {"scrapy_splash.SplashDeduplicateArgsMiddleware": 100}
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 DOWNLOADER_MIDDLEWARES = {
-    # https://www.zyte.com/blog/scrapy-proxy/
-    "gloscrape.middlewares.LuminatiProxyManagerMiddleware": 100,
-    "scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware": 200,
-    # https://coderslegacy.com/python/scrapy-user-agents/
     "scrapy.downloadermiddlewares.useragent.UserAgentMiddleware": None,
-    "gloscrape.middlewares.RandomUserAgentMiddleware": 400,
+    "gloscrape.middlewares.WindscribeMiddleware": 560,
+    "scrapy_splash.SplashCookiesMiddleware": 723,
+    "scrapy_splash.SplashMiddleware": 725,
+    "gloscrape.middlewares.SplashRequestMiddleware": 722,
+    "scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware": 810,  # noqa: E501
 }
-RANDOM_UA_TYPE = "desktop.random"
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
 # EXTENSIONS = {
@@ -80,17 +78,27 @@ AUTOTHROTTLE_START_DELAY = 3
 AUTOTHROTTLE_MAX_DELAY = 30
 # The average number of requests Scrapy should be sending in parallel to
 # each remote server
-AUTOTHROTTLE_TARGET_CONCURRENCY = 1.0
+AUTOTHROTTLE_TARGET_CONCURRENCY = 3.0
 # Enable showing throttling stats for every response received:
 # AUTOTHROTTLE_DEBUG = False
 
+RETRY_ENABLED = True
+RETRY_TIMES = 4  # initial response + 4 retries = 5 requests
+RETRY_HTTP_CODES = [500, 502, 503, 504, 522, 524, 408, 429, 403]
+
 # Enable and configure HTTP caching (disabled by default)
-# HTTPCACHE_ENABLED = True
+HTTPCACHE_ENABLED = True
 # HTTPCACHE_EXPIRATION_SECS = 0
-# HTTPCACHE_DIR = 'httpcache'
-# HTTPCACHE_IGNORE_HTTP_CODES = []
+HTTPCACHE_DIR = "httpcache"
+HTTPCACHE_IGNORE_HTTP_CODES = RETRY_HTTP_CODES
 # HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 
-RETRY_ENABLED = True
-RETRY_TIMES = 2  # initial response + 2 retries = 3 requests
-RETRY_HTTP_CODES = [500, 502, 503, 504, 522, 524, 408, 429, 403]
+SPLASH_URL = "http://127.0.0.1:8050"
+DUPEFILTER_CLASS = "scrapy_splash.SplashAwareDupeFilter"
+DUPEFILTER_DEBUG = True
+HTTPCACHE_STORAGE = "scrapy_splash.SplashAwareFSCacheStorage"
+REFERER_ENABLED = False
+
+# Parsed from https://github.com/tamimibrahim17/List-of-user-agents
+USER_AGENT_FILE = "gloscrape/extra/uas-small.txt"
+WS_VPN_LIST_FILE = "gloscrape/extra/windscribe-akamai.txt"
