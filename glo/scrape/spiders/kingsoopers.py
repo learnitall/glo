@@ -111,7 +111,7 @@ class KingSooperSpider(Spider):
         if response.css("title::text").get() == "Access Denied":
             raise ConnectionRefusedError("Access Denied")
         una = response.css(".kds-Heading--xl::text").get()
-        nut = response.css(".NutritionLabel").get()
+        nut = response.css(".NutrientDetail-TitleAndAmount::text").getall()
         # use request url to ensure we get the right one
         # sometimes splash returns things out of order
         url = response.request.url
