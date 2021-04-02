@@ -9,10 +9,10 @@ commonly used. You can find more settings consulting the documentation:
      https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 """
 
-BOT_NAME = "gloscrape"
+BOT_NAME = "glo.scrape"
 
-SPIDER_MODULES = ["gloscrape.spiders"]
-NEWSPIDER_MODULE = "gloscrape.spiders"
+SPIDER_MODULES = ["glo.scrape.spiders"]
+NEWSPIDER_MODULE = "glo.scrape.spiders"
 
 # Crawl responsibly by identifying yourself
 # (and your website) on the user-agent
@@ -53,10 +53,10 @@ SPIDER_MIDDLEWARES = {"scrapy_splash.SplashDeduplicateArgsMiddleware": 100}
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 DOWNLOADER_MIDDLEWARES = {
     "scrapy.downloadermiddlewares.useragent.UserAgentMiddleware": None,
-    "gloscrape.middlewares.WindscribeMiddleware": 560,
+    "glo.scrape.middlewares.WindscribeMiddleware": 560,
     "scrapy_splash.SplashCookiesMiddleware": 723,
     "scrapy_splash.SplashMiddleware": 725,
-    "gloscrape.middlewares.SplashRequestMiddleware": 722,
+    "glo.scrape.middlewares.SplashRequestMiddleware": 722,
     "scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware": 810,  # noqa: E501
 }
 # Enable or disable extensions
@@ -100,5 +100,5 @@ HTTPCACHE_STORAGE = "scrapy_splash.SplashAwareFSCacheStorage"
 REFERER_ENABLED = False
 
 # Parsed from https://github.com/tamimibrahim17/List-of-user-agents
-USER_AGENT_FILE = "gloscrape/extra/uas-small.txt"
-WS_VPN_LIST_FILE = "gloscrape/extra/windscribe-akamai.txt"
+USER_AGENT_FILE = "glo/scrape/extra/uas-small.txt"
+WS_VPN_LIST_FILE = "glo/scrape/extra/windscribe-akamai.txt"
