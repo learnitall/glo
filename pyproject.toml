@@ -13,8 +13,10 @@ documentation = "https://glo.readthedocs.io/en/latest/"
 include =  ["LICENSE"]
 
 [tool.poetry.dependencies]
-python = "^3.6"
+python = "^3.6, <3.9"
 pint = "*"
+numpy = "*"
+pandas = "*"
 pytest = { version = "*", optional = true }
 pytest-cov = { version = "*", optional = true }
 sphinx = { version = "*", optional = true }
