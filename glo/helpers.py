@@ -74,7 +74,7 @@ def multimethod(*types: Type) -> Callable:
     ...     return a * b
     ...
 
-    >>> @multimethod(int, int, str):
+    >>> @multimethod(int, int, str)
     ... def my_func(a, b, s):
     ...    return s.format(my_func(a, b))
     ...
@@ -82,15 +82,15 @@ def multimethod(*types: Type) -> Callable:
     >>> my_func(5, 6)
     30
     >>> my_func(5, 6, "The result is: {}")
-    The result is: 30
+    'The result is: 30'
     """
 
     def register(function):
         name = function.__name__
-        mm = _registry.get(name)
-        if mm is None:
-            mm = _registry[name] = MultiMethod(name)
-        mm.register(types, function)
-        return mm
+        multi = _registry.get(name)
+        if multi is None:
+            multi = _registry[name] = MultiMethod(name)
+        multi.register(types, function)
+        return multi
 
     return register

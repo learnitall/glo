@@ -4,14 +4,12 @@
 from abc import ABC, abstractmethod
 import string
 from typing import Callable, Set
-from functools import reduce
 import re
 from pint import UndefinedUnitError
-from sklearn.preprocessing import FunctionTransformer
 from ._ureg import Q_, simplified_div
 
 
-class BaseUnitParser(ABC):
+class BaseUnitParser(ABC):  # pylint: disable=too-few-public-methods
     """
     ABC of a UnitParser class.
 
@@ -21,8 +19,20 @@ class BaseUnitParser(ABC):
     """
 
     @abstractmethod
-    def find_unit_strs(self, s: str) -> Set[str]:
-        pass
+    def find_unit_strs(self, s_in: str) -> Set[str]:
+        """
+        Get set of possible unit substrings from input string.
+
+        Parameters
+        ----------
+        s_in: str
+            Input string to search through
+
+        Returns
+        -------
+        set of str
+            Set of possible unit substrings in input ``s_in``.
+        """
 
 
 class ASCIIUnitParser(BaseUnitParser):
@@ -44,11 +54,11 @@ class ASCIIUnitParser(BaseUnitParser):
         characters
     """
 
-    _r_digit = r'\d+\/{1}\d+|\d+\.{1}\d+|\d+'
-    _r_unit = fr'(?:{_r_digit})[\ a-zA-Z]+'
+    _r_digit = r"\d+\/{1}\d+|\d+\.{1}\d+|\d+"
+    _r_unit = fr"(?:{_r_digit})[\ a-zA-Z]+"
     _printable = set(string.printable)
 
-    def prep_str(self, s: str) -> str:
+    def prep_str(self, s_in: str) -> str:
         """
         Takes in a string and prepares it for parsing.
 
@@ -58,42 +68,42 @@ class ASCIIUnitParser(BaseUnitParser):
 
         Parameters
         ----------
-        s: str
+        s_in: str
             Input string to prep.
 
         Returns
         -------
         str
-            Prepped version of the input ``s``.
+            Prepped version of the input ``s_in``.
 
         Examples
         --------
         >>> from glo.features.serving import ASCIIUnitParser
         >>> aup = ASCIIUnitParser()
         >>> aup.prep_str("25 Ounces")
-        25 ounces
-        >>> aup.prep_str("some\x00string. with\x15 funny characters")
-        somestring. with funny characters
+        '25 ounces'
+        >>> aup.prep_str("some\x05string. with\x15 funny characters")
+        'somestring. with funny characters'
         >>> aup.prep_str("    some string with whitespace   ")
-        some string with whitespace
+        'some string with whitespace'
         """
 
-        as_ascii = ''.join(filter(lambda x: x in self._printable, s))
+        as_ascii = "".join(filter(lambda x: x in self._printable, s_in))
         return as_ascii.strip().lower()
 
-    def find_unit_strs(self, s: str) -> Set[str]:
+    def find_unit_strs(self, s_in: str) -> Set[str]:
         """
         Get set of possible unit substrings from input string.
 
         Parameters
         ----------
-        s: str
+        s_in: str
             Input string to search through
 
         Returns
         -------
         set of str
-            Set of possible unit substrings in input ``s``.
+            Set of possible unit substrings in input ``s_in``.
 
         Examples
         --------
@@ -103,21 +113,26 @@ class ASCIIUnitParser(BaseUnitParser):
         {'25 ounces'}
         >>> aup.find_unit_strs("25 OUNCES")
         {'25 ounces'}
-        >>> aup.find_unit_strs("12.5 cans / 12 fl oz")
-        {'12.5 cans', '12 fl oz'}
-        >>> aup.find_unit_strs("Serving size is 15 gal (1/3 jug)")
-        {'15 gal', '1/3 jug'}
+        >>> sorted(list(aup.find_unit_strs("12.5 cans / 12 fl oz")))
+        ['12 fl oz', '12.5 cans']
+        >>> sorted(list(
+        ...     aup.find_unit_strs("Serving size is 15 gal (1/3 jug)")
+        ... ))
+        ...
+        ['1/3 jug', '15 gal']
         """
 
-        s = self.prep_str(s)
-        matches = re.findall(f"({self._r_unit})", s)
-        return set([m.strip() for m in matches])
+        s_in = self.prep_str(s_in)
+        matches = re.findall(f"({self._r_unit})", s_in)
+        return {m.strip() for m in matches}
 
 
 def get_num_servings(
-        weight: str, serving_size: str,
-        div_func: Callable[[Q_, Q_], float]=simplified_div,
-        unit_parser: BaseUnitParser=ASCIIUnitParser()) -> float:
+    weight: str,
+    serving_size: str,
+    div_func: Callable[[Q_, Q_], float] = simplified_div,
+    unit_parser: BaseUnitParser = ASCIIUnitParser(),
+) -> float:
     """
     Return number of servings based on weight and serving size.
 
@@ -155,9 +170,9 @@ def get_num_servings(
     --------
     >>> from glo.features.serving import get_num_servings
     >>> get_num_servings("15 ounces", "5 ounces")
-    3
+    3.0
     >>> get_num_servings("5 bottles (25 ounces)", "1 bottle (5 ounces)")
-    5
+    5.0
 
     See Also
     --------
@@ -168,11 +183,11 @@ def get_num_servings(
 
     weight_strs = unit_parser.find_unit_strs(weight)
     ss_strs = unit_parser.find_unit_strs(serving_size)
-    for ws in weight_strs:
-        for ss in ss_strs:
+    for w_str in weight_strs:
+        for s_str in ss_strs:
             try:
-                wq, sq = Q_(ws), Q_(ss)
-                return div_func(wq, sq)
+                w_qt, s_qt = Q_(w_str), Q_(s_str)
+                return div_func(w_qt, s_qt)
             except (UndefinedUnitError, TypeError):
                 pass
 

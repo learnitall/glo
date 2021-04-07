@@ -8,7 +8,7 @@ Q_ = ureg.Quantity
 _Q_class = Q_("1337 seconds").__class__
 
 
-def simplified_div(q1: Q_, q2: Q_) -> float:
+def simplified_div(q1: Q_, q2: Q_) -> float:  # pylint: disable=invalid-name
     """
     Return float of simplified division of quantities.
 
@@ -32,8 +32,8 @@ def simplified_div(q1: Q_, q2: Q_) -> float:
     result = (q1 / q2).to_reduced_units()
     if result.dimensionless:
         return float(result.m)
-    else:
-        raise TypeError(
-            f"Unable to simplify division of {q1} / {q2}. "
-            f"Ended up with {result}."
-        )
+
+    raise TypeError(
+        f"Unable to simplify division of {q1} / {q2}. "
+        f"Ended up with {result}."
+    )
