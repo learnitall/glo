@@ -2,6 +2,6 @@
 # -*- coding: utf-8 -*-
 # flake8: noqa: F401
 """glo: Grocery List Optimizer."""
-from ._ureg import ureg, Q_
-from .product import Product
-from .nutrition import NutritionFact, NutritionSet
+from .features._ureg import ureg, Q_
+from .features.product import Product
+from .features.nutrition import NutritionFact, NutritionSet
