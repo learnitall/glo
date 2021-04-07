@@ -1,41 +1,42 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import pytest
-import glo
+from glo.features._ureg import Q_, ureg
+from glo.features.nutrition import NutritionFact, NutritionSet
 
 
 def test_create_basic_nutrition_fact_instance():
     """Test can create and access attributes of `NutritionFact`."""
 
-    nf = glo.NutritionFact("sodium", glo.Q_(10, "grams"))
+    nf = NutritionFact("sodium", Q_(10, "grams"))
 
     assert nf.name == "sodium"
-    assert nf.units == glo.ureg.grams
+    assert nf.units == ureg.grams
     assert nf.amount == 10
-    assert nf.quantity == glo.Q_(10, "grams")
+    assert nf.quantity == Q_(10, "grams")
 
-    nf = glo.NutritionFact("na")
+    nf = NutritionFact("na")
     assert nf.name == "na"
-    assert nf.units == glo.ureg.dimensionless
+    assert nf.units == ureg.dimensionless
     assert nf.amount == 0
 
 
 def test_edit_basic_nutrition_fact_instance():
     """Test can edit attributes of `NutritionFact`."""
 
-    nf = glo.NutritionFact("sodium", glo.Q_(10, "grams"))
+    nf = NutritionFact("sodium", Q_(10, "grams"))
 
-    assert nf.units == glo.ureg.grams
+    assert nf.units == ureg.grams
     assert nf.amount == 10
 
     # Change units to milligrams by modifying quantity attribute
     nf.quantity = nf.quantity.to('milligrams')
-    assert nf.units == glo.ureg.milligrams
+    assert nf.units == ureg.milligrams
     assert nf.amount == 10000
 
     # Change units back to grams by setting units attribute
-    nf.units = glo.ureg.grams
-    assert nf.units == glo.ureg.grams
+    nf.units = ureg.grams
+    assert nf.units == ureg.grams
     assert nf.amount == 10
 
     # Change quantity magnitude by setting amount attribute
@@ -46,10 +47,10 @@ def test_edit_basic_nutrition_fact_instance():
 def test_operator_overloads_nutrition_fact():
     """Test can add, subtract, multiply and divide with ``NutritionFact``."""
 
-    nf1 = glo.NutritionFact("sodium", glo.Q_(10, "grams"))
-    q = glo.Q_(30, "milligram")
-    nf2 = glo.NutritionFact("sodium", glo.Q_(11.2, "grams"))
-    nf3 = glo.NutritionFact("my metric", glo.Q_(10, None))
+    nf1 = NutritionFact("sodium", Q_(10, "grams"))
+    q = Q_(30, "milligram")
+    nf2 = NutritionFact("sodium", Q_(11.2, "grams"))
+    nf3 = NutritionFact("my metric", Q_(10, None))
 
     # Doesn't make sense to add or remove 15 from 10 grams of sodium
     # 15 what?
@@ -74,18 +75,18 @@ def test_operator_overloads_nutrition_fact():
     assert round((nf1 - nf2).amount, ndigits=1) == -1.2
 
     assert (nf1 * 2).amount == 20
-    assert (nf1 * q).quantity == glo.Q_(0.3, "grams ** 2")
-    assert (nf1 * nf2).quantity == glo.Q_(112, "grams ** 2")
+    assert (nf1 * q).quantity == Q_(0.3, "grams ** 2")
+    assert (nf1 * nf2).quantity == Q_(112, "grams ** 2")
 
     assert (nf1 / 2).amount == 5
-    assert (nf1 / q).quantity == glo.Q_(10 / 30, "gram / milligram")
-    assert (nf1 / nf2).quantity == glo.Q_(10 / 11.2, "dimensionless")
+    assert (nf1 / q).quantity == Q_(10 / 30, "gram / milligram")
+    assert (nf1 / nf2).quantity == Q_(10 / 11.2, "dimensionless")
 
 
 def test_nutrition_fact_name_is_read_only():
     """Test that ``NutritionFact.name`` is read-only."""
 
-    nf = glo.NutritionFact("test name")
+    nf = NutritionFact("test name")
     with pytest.raises(AttributeError):
         nf.name = "test"
 
@@ -93,14 +94,14 @@ def test_nutrition_fact_name_is_read_only():
 def test_create_basic_nutrition_set_instance():
     """Test can create and access attributes of ``NutritionSet``."""
 
-    ns = glo.NutritionSet(
-        glo.NutritionFact("sodium", glo.Q_(10, "grams")),
-        glo.NutritionFact("fat", glo.Q_(11, "grams")),
-        glo.NutritionFact("my metric", glo.Q_(100, None))
+    ns = NutritionSet(
+        NutritionFact("sodium", Q_(10, "grams")),
+        NutritionFact("fat", Q_(11, "grams")),
+        NutritionFact("my metric", Q_(100, None))
     )
 
-    assert ns["sodium"].quantity == glo.Q_(10, "grams")
-    assert ns.get("fat").quantity == glo.Q_(11, "grams")
+    assert ns["sodium"].quantity == Q_(10, "grams")
+    assert ns.get("fat").quantity == Q_(11, "grams")
     assert ns.get("my metric").amount == 100
     assert ns.get("not here").amount == 0
 
@@ -108,17 +109,17 @@ def test_create_basic_nutrition_set_instance():
 def test_can_edit_nutrition_set_instance():
     """Test can edit attributes of ``NutritionSet``."""
 
-    ns = glo.NutritionSet()
-    ns["sodium"] = glo.NutritionFact("sodium", glo.Q_(10, "grams"))
-    assert ns["sodium"].quantity == glo.Q_(10, "grams")
-    ns["sodium"] -= glo.Q_(5, "grams")
-    assert ns["sodium"].quantity == glo.Q_(5, "grams")
-    ns["sodium"] = glo.Q_(5, "milligrams")
-    assert ns.get("sodium").quantity == glo.Q_(5, "milligrams")
+    ns = NutritionSet()
+    ns["sodium"] = NutritionFact("sodium", Q_(10, "grams"))
+    assert ns["sodium"].quantity == Q_(10, "grams")
+    ns["sodium"] -= Q_(5, "grams")
+    assert ns["sodium"].quantity == Q_(5, "grams")
+    ns["sodium"] = Q_(5, "milligrams")
+    assert ns.get("sodium").quantity == Q_(5, "milligrams")
 
-    ns["fat"] = glo.Q_(11, "grams")
+    ns["fat"] = Q_(11, "grams")
     assert ns["fat"].amount == 11
-    ns["fat"] += glo.Q_(10, "grams")
+    ns["fat"] += Q_(10, "grams")
     assert ns["fat"].amount == 21
 
     del ns["fat"]
@@ -128,12 +129,12 @@ def test_can_edit_nutrition_set_instance():
 def test_update_method_nutrition_set():
     """Test that we can update a ``NutritionSet`` using its ``update`` method."""
 
-    ns = glo.NutritionSet()
-    nf1 = glo.NutritionFact("sodium", glo.Q_(10, "grams"))
-    nf2 = glo.NutritionFact("fat", glo.Q_(11, "grams"))
-    nf3 = glo.NutritionFact("my metric", glo.Q_(100, None))
-    ns2 = glo.NutritionSet(
-        glo.NutritionFact("protein", glo.Q_(15, "grams"))
+    ns = NutritionSet()
+    nf1 = NutritionFact("sodium", Q_(10, "grams"))
+    nf2 = NutritionFact("fat", Q_(11, "grams"))
+    nf3 = NutritionFact("my metric", Q_(100, None))
+    ns2 = NutritionSet(
+        NutritionFact("protein", Q_(15, "grams"))
     )
 
     for nf_name in ("sodium", "fat", "my metric", "protein"):
@@ -170,12 +171,12 @@ def test_update_method_when_given_bad_types():
         '10',
         10,
         range(15),
-        glo.Q_(10, "grams"),
+        Q_(10, "grams"),
         {'sodium': 15},
-        {15: glo.Q_(10, "grams")}
+        {15: Q_(10, "grams")}
     ]
 
-    ns = glo.NutritionSet()
+    ns = NutritionSet()
 
     for bad_param in bad_params:
         with pytest.raises(TypeError):
@@ -185,10 +186,10 @@ def test_update_method_when_given_bad_types():
 def test_update_method_nutrition_set_raises_errors_on_bad_types():
     """Test that ``TypeError` is raised with ``NutritionSet.update``."""
 
-    ns = glo.NutritionSet()
+    ns = NutritionSet()
     args = (
         "hey there",
-        {10: glo.Q_(10, "grams")},
+        {10: Q_(10, "grams")},
         {"sodium", 10},
         153
     )
@@ -197,23 +198,23 @@ def test_update_method_nutrition_set_raises_errors_on_bad_types():
             ns.update(a)
 
     with pytest.raises(TypeError):
-        ns[10] = glo.Q_(10, "grams")
+        ns[10] = Q_(10, "grams")
         test = ns[10]
 
 
 def test_nutrition_fact_as_dict_method():
     """Test that ``as_dict`` method returns correct dict representation."""
 
-    ns = glo.NutritionSet(
-        glo.NutritionFact("sodium", glo.Q_(10, "grams")),
-        glo.NutritionFact("fat", glo.Q_(11, "grams")),
-        glo.NutritionFact("my metric", glo.Q_(100, None))
+    ns = NutritionSet(
+        NutritionFact("sodium", Q_(10, "grams")),
+        NutritionFact("fat", Q_(11, "grams")),
+        NutritionFact("my metric", Q_(100, None))
     )
 
     assert ns.as_dict() == {
-        "sodium": glo.Q_(10, "grams"),
-        "fat": glo.Q_(11, "grams"),
-        "my metric": glo.Q_(100, None)
+        "sodium": Q_(10, "grams"),
+        "fat": Q_(11, "grams"),
+        "my metric": Q_(100, None)
     }
 
 
@@ -221,32 +222,32 @@ def test_can_add_and_subtract_nutrition_set_instances():
     """Test that we can add and subtract ``NutritionSet`` instances."""
 
     ns_dict1 = {
-        'sodium': glo.Q_(10, 'milligrams'),
-        'fat': glo.Q_(15, 'grams'),
-        'protein': glo.Q_(5, 'grams')
+        'sodium': Q_(10, 'milligrams'),
+        'fat': Q_(15, 'grams'),
+        'protein': Q_(5, 'grams')
     }
     ns_dict2 = {
-        'sodium': glo.Q_(5, 'grams'),
-        'fat': glo.Q_(15, 'grams'),
-        'trans fat': glo.Q_(8, 'grams')
+        'sodium': Q_(5, 'grams'),
+        'fat': Q_(15, 'grams'),
+        'trans fat': Q_(8, 'grams')
     }
 
-    ns1 = glo.NutritionSet()
+    ns1 = NutritionSet()
     ns1.update(ns_dict1)
 
-    ns2 = glo.NutritionSet()
+    ns2 = NutritionSet()
     ns2.update(ns_dict2)
 
     assert (ns1 + ns2).as_dict() == {
-        'sodium': glo.Q_(5010, 'milligram'),
-        'fat': glo.Q_(30, 'grams'),
-        'protein': glo.Q_(5, 'grams'),
-        'trans fat': glo.Q_(8, 'grams')
+        'sodium': Q_(5010, 'milligram'),
+        'fat': Q_(30, 'grams'),
+        'protein': Q_(5, 'grams'),
+        'trans fat': Q_(8, 'grams')
     }
 
     assert (ns1 - ns2).as_dict() == {
-        'sodium': glo.Q_(-4990, 'milligram'),
-        'fat': glo.Q_(0, 'grams'),
-        'protein': glo.Q_(5, 'grams'),
-        'trans fat': glo.Q_(-8, 'grams')
+        'sodium': Q_(-4990, 'milligram'),
+        'fat': Q_(0, 'grams'),
+        'protein': Q_(5, 'grams'),
+        'trans fat': Q_(-8, 'grams')
     }

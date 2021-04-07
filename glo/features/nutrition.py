@@ -115,8 +115,9 @@ class NutritionFact:
 
     Examples
     --------
-    >>> import glo
-    >>> my_sodium = glo.NutritionFact("sodium", glo.Q_(250, "mg"))
+    >>> from glo.features.nutrition import NutritionFact
+    >>> from glo.features._ureg import ureg, Q_
+    >>> my_sodium = NutritionFact("sodium", Q_(250, "mg"))
     >>> my_sodium.name
     'sodium'
     >>> my_sodium.amount
@@ -125,7 +126,7 @@ class NutritionFact:
     <Unit('milligram')>
     >>> my_sodium.amount += 10; my_sodium.amount
     260
-    >>> my_sodium.units = glo.ureg.grams; my_sodium.quantity
+    >>> my_sodium.units = ureg.grams; my_sodium.quantity
     <Quantity(0.26, 'gram')>
     """
 
@@ -237,23 +238,24 @@ class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
 
     Examples
     --------
-    >>> import glo
-    >>> sodium = glo.NutritionFact("sodium", glo.Q_(10, "grams"))
-    >>> protein = glo.NutritionFact("protein", glo.Q_(15, "grams"))
-    >>> fat = glo.NutritionFact("fat", glo.Q_(5, "grams"))
-    >>> my_set = glo.NutritionSet(sodium, protein, fat)
+    >>> from glo.features.nutrition import NutritionFact, NutritionSet
+    >>> from glo.features._ureg import Q_
+    >>> sodium = NutritionFact("sodium", Q_(10, "grams"))
+    >>> protein = NutritionFact("protein", Q_(15, "grams"))
+    >>> fat = NutritionFact("fat", Q_(5, "grams"))
+    >>> my_set = NutritionSet(sodium, protein, fat)
     >>> my_set["sodium"].amount
     10
-    >>> my_set["sodium"] += glo.Q_(5, "grams")
+    >>> my_set["sodium"] += Q_(5, "grams")
     >>> my_set["sodium"].amount
     15
     >>> my_set["calories"].amount
     0
-    >>> calories = glo.NutritionFact("calories", glo.Q_(100, "calories"))
+    >>> calories = NutritionFact("calories", Q_(100, "calories"))
     >>> my_set.update(calories)
     >>> my_set["calories"].amount
     100
-    >>> my_set += glo.NutritionSet(calories * 2)
+    >>> my_set += NutritionSet(calories * 2)
     >>> my_set["calories"].amount
     300
     """
@@ -359,11 +361,12 @@ class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
         Examples
         --------
         >>> # Say we have the following variables to start with:
-        >>> import glo
-        >>> sodium = glo.NutritionFact("sodium", glo.Q_(10, "grams"))
-        >>> protein = glo.NutritionFact("protein", glo.Q_(15, "grams"))
-        >>> fat = glo.NutritionFact("fat", glo.Q_(5, "grams"))
-        >>> my_ns = glo.NutritionSet()
+        >>> from glo.features.nutrition import NutritionFact, NutritionSet
+        >>> from glo.features._ureg import Q_
+        >>> sodium = NutritionFact("sodium", Q_(10, "grams"))
+        >>> protein = NutritionFact("protein", Q_(15, "grams"))
+        >>> fat = NutritionFact("fat", Q_(5, "grams"))
+        >>> my_ns = NutritionSet()
         >>> # We can update my_ns like so
         >>> my_ns.update(protein)
         >>> my_ns["protein"].amount
@@ -385,7 +388,7 @@ class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
         ... )
         10, 15, 5
         >>> my_ns.update(
-        ...     {'sodium': glo.Q_(10, 'grams')},
+        ...     {'sodium': Q_(10, 'grams')},
         ...     merge_func=lambda a, b: (a + b) * 2
         ... )
         >>> my_ns["sodium"].amount

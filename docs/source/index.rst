@@ -10,12 +10,6 @@ Welcome to glo's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-.. automodule:: glo.nutrition
-   :members:
-
-.. automodule:: glo.product
-   :members:
-
 Indices and tables
 ==================
 
