@@ -1,15 +1,31 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """Tools for working with and representing nutrition information."""
+from abc import ABC, abstractmethod
 import string
-from typing import Set
+from typing import Callable, Set
 from functools import reduce
 import re
+from pint import UndefinedUnitError
 from sklearn.preprocessing import FunctionTransformer
-from ._ureg import Q_
+from ._ureg import Q_, simplified_div
 
 
-class ASCIIUnitParser:
+class BaseUnitParser(ABC):
+    """
+    ABC of a UnitParser class.
+
+    A UnitParser class implements the ``find_unit_strs`` method,
+    which takes in a string and returns a set of substrings
+    that define a quantity with units.
+    """
+
+    @abstractmethod
+    def find_unit_strs(self, s: str) -> Set[str]:
+        pass
+
+
+class ASCIIUnitParser(BaseUnitParser):
     """
     Parses Units from ASCII strings.
 
@@ -29,7 +45,7 @@ class ASCIIUnitParser:
     """
 
     _r_digit = r'\d+\/{1}\d+|\d+\.{1}\d+|\d+'
-    _r_unit = f'(?:{_r_digit})[\ \w]+'
+    _r_unit = fr'(?:{_r_digit})[\ a-zA-Z]+'
     _printable = set(string.printable)
 
     def prep_str(self, s: str) -> str:
@@ -96,3 +112,71 @@ class ASCIIUnitParser:
         s = self.prep_str(s)
         matches = re.findall(f"({self._r_unit})", s)
         return set([m.strip() for m in matches])
+
+
+def get_num_servings(
+        weight: str, serving_size: str,
+        div_func: Callable[[Q_, Q_], float]=simplified_div,
+        unit_parser: BaseUnitParser=ASCIIUnitParser()) -> float:
+    """
+    Return number of servings based on weight and serving size.
+
+    Will pass the weight and serving_size parameters to the given
+    unit parser first. Will then try diffenent combinations of
+    the pulled substrings until a successful result from the
+    given division function.
+
+    Parameters
+    ----------
+    weight: str
+        string representing weight
+    serving_size: str
+        string representing serving size
+    div_func: callable, optional
+        This function is used to perform the division of the weight
+        and serving size parameters. A custom one can be given if
+        needed.
+    unit_parser: instance of BaseUnitParser, optional
+        UnitParser instance to use to parse weight and serving size
+        parameters into set of possible unit substrings.
+
+    Returns
+    -------
+    float
+        Number of servings based on the given parameters.
+
+    Raises
+    ------
+    ValueError
+        If the number of servings cannot be determined from the
+        given parameters.
+
+    Examples
+    --------
+    >>> from glo.features.serving import get_num_servings
+    >>> get_num_servings("15 ounces", "5 ounces")
+    3
+    >>> get_num_servings("5 bottles (25 ounces)", "1 bottle (5 ounces)")
+    5
+
+    See Also
+    --------
+    glo.features._ureg.simplified_div
+    BaseUnitParser
+    ASCIIUnitParser
+    """
+
+    weight_strs = unit_parser.find_unit_strs(weight)
+    ss_strs = unit_parser.find_unit_strs(serving_size)
+    for ws in weight_strs:
+        for ss in ss_strs:
+            try:
+                wq, sq = Q_(ws), Q_(ss)
+                return div_func(wq, sq)
+            except (UndefinedUnitError, TypeError):
+                pass
+
+    raise ValueError(
+        f"Unable to determine number of servings with weight {weight} and "
+        f"servings {serving_size}"
+    )
