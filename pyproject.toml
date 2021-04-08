@@ -20,6 +20,7 @@ pint = "*"
 numpy = "*"
 pandas = "*"
 sklearn = "*"
+torch = "*"
 pytest = { version = "*", optional = true }
 pytest-cov = { version = "*", optional = true }
 sphinx = { version = "*", optional = true }
