@@ -3,10 +3,10 @@
 """Readers that load data from disk."""
 import os
 from typing import Iterator
-from .abc import BaseReader
 import json
 import pandas as pd
 from glo.data.pandas import PandasDataset
+from .base import BaseReader
 
 
 class FileReader(BaseReader):
