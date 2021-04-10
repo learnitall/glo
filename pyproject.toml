@@ -15,7 +15,7 @@ include =  ["LICENSE"]
 [tool.poetry.dependencies]
 # make sure to upgrade pip before install
 # see https://github.com/python-poetry/poetry/issues/3591
-python = ">3.7.1, <3.9"
+python = ">=3.7.1, <3.9"
 pint = "*"
 numpy = "*"
 pandas = "*"
