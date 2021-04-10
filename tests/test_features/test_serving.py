@@ -12,21 +12,6 @@ def test_create_ascii_unit_parser():
     ASCIIUnitParser()
 
 
-def test_prep_str_ascii_unit_parser():
-    """Assert prep_str properly prepares string for regex."""
-
-    test_strs = {
-        "25 ☆s": "25 s",
-        "     lots of whitespace   ": "lots of whitespace",
-        "I'M ALL✅ CAPS   ✅✅": "i'm all caps",
-        "  GO AWAY 🦠 ": "go away"
-    }
-
-    aup = ASCIIUnitParser()
-    for p, a in test_strs.items():
-        assert aup.prep_str(p) == a
-
-
 def test_find_unit_strs_ascii_unit_parser():
     """Assert find_unit_strs properly finds unit strings."""
 

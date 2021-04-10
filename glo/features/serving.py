@@ -2,14 +2,14 @@
 # -*- coding: utf-8 -*-
 """Tools for working with and representing nutrition information."""
 from abc import ABC, abstractmethod
-import string
 from typing import Callable, Set
 import re
 from pint import UndefinedUnitError
+from glo.helpers import prep_ascii_str
 from ._ureg import Q_, simplified_div
 
 
-class BaseUnitParser(ABC):  # pylint: disable=too-few-public-methods
+class BaseUnitParser(ABC):
     """
     ABC of a UnitParser class.
 
@@ -56,40 +56,6 @@ class ASCIIUnitParser(BaseUnitParser):
 
     _r_digit = r"\d+\/{1}\d+|\d+\.{1}\d+|\d+"
     _r_unit = fr"(?:{_r_digit})[\ a-zA-Z]+"
-    _printable = set(string.printable)
-
-    def prep_str(self, s_in: str) -> str:
-        """
-        Takes in a string and prepares it for parsing.
-
-        In this method we convert the string to all lowercase and
-        remove any characters that aren't supported by the ASCII
-        character set.
-
-        Parameters
-        ----------
-        s_in: str
-            Input string to prep.
-
-        Returns
-        -------
-        str
-            Prepped version of the input ``s_in``.
-
-        Examples
-        --------
-        >>> from glo.features.serving import ASCIIUnitParser
-        >>> aup = ASCIIUnitParser()
-        >>> aup.prep_str("25 Ounces")
-        '25 ounces'
-        >>> aup.prep_str("some\x05string. with\x15 funny characters")
-        'somestring. with funny characters'
-        >>> aup.prep_str("    some string with whitespace   ")
-        'some string with whitespace'
-        """
-
-        as_ascii = "".join(filter(lambda x: x in self._printable, s_in))
-        return as_ascii.strip().lower()
 
     def find_unit_strs(self, s_in: str) -> Set[str]:
         """
@@ -122,7 +88,7 @@ class ASCIIUnitParser(BaseUnitParser):
         ['1/3 jug', '15 gal']
         """
 
-        s_in = self.prep_str(s_in)
+        s_in = prep_ascii_str(s_in)
         matches = re.findall(f"({self._r_unit})", s_in)
         return {m.strip() for m in matches}
 

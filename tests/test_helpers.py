@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import pytest
-from glo.helpers import MultiMethod, multimethod
+from glo.helpers import MultiMethod, multimethod, prep_ascii_str
 
 
 def test_MultiMethod_type_errors():
@@ -33,3 +33,17 @@ def test_MultiMethod_type_errors():
         mm(5.6, 15.5)
     mm.register((float, float), test2)
     assert mm(36.5, 45.6) == test2(36.5, 45.6)
+
+
+def test_prep_ascii_str():
+    """Assert prep_ascii_str properly prepares string."""
+
+    test_strs = {
+        "25 ☆s": "25 s",
+        "     lots of whitespace   ": "lots of whitespace",
+        "I'M ALL✅ CAPS   ✅✅": "i'm all caps",
+        "  GO AWAY 🦠 ": "go away"
+    }
+
+    for p, a in test_strs.items():
+        assert prep_ascii_str(p) == a
