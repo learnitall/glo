@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Helper functions and classes."""
-from typing import Callable, Iterable, List, Tuple, Type
+from typing import Callable, Iterable, List, Mapping, Tuple, Type
 import string
 import functools
 
@@ -243,3 +243,31 @@ def contains_substring(s_in: str, subs: Iterable[str]) -> bool:
     """
 
     return any(sub_str in s_in for sub_str in subs)
+
+
+def replace_multiple_substrings(s_in: str, subs: Mapping[str, str]) -> str:
+    """
+    Replace multiple substrings within the given input string.
+
+    The order in which the replacements occur cannot be guaranteed.
+
+    Parameters
+    ----------
+    s_in: str
+        Input string to make the substitutions in.
+    sub: mapping of str to str
+        Keys in this dict are substrings to replace, with each values
+        being the string the key should be replaced with.
+
+    Examples
+    --------
+    >>> from glo.helpers import replace_multiple_substrings
+    >>> replace_multiple_substrings("a test", {"a": "hey", "test": "there"})
+    'hey there'
+    >>> replace_multiple_substrings("12546", {"5": "3", "6": "321"})
+    '1234321'
+    """
+
+    return functools.reduce(
+        lambda result, next_sub: result.replace(*next_sub), subs.items(), s_in
+    )

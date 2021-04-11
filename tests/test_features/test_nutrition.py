@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import pytest
-from glo.features._ureg import Q_, ureg
+from glo.units import Q_, ureg
 from glo.features.nutrition import NutritionFact, NutritionSet
 
 
@@ -19,6 +19,12 @@ def test_create_basic_nutrition_fact_instance():
     assert nf.name == "na"
     assert nf.units == ureg.dimensionless
     assert nf.amount == 0
+
+    nf = NutritionFact("protein", "18 floz")
+    assert nf.name == "protein"
+    assert nf.units == ureg.fluid_ounces
+    assert nf.amount == 18
+    assert nf.quantity == Q_(18, "floz")
 
 
 def test_edit_basic_nutrition_fact_instance():
@@ -202,20 +208,18 @@ def test_update_method_nutrition_set_raises_errors_on_bad_types():
         test = ns[10]
 
 
-def test_nutrition_fact_as_dict_method():
-    """Test that ``as_dict`` method returns correct dict representation."""
+def test_nutrition_fact_as_dict_and_from_dict_methods():
+    """Test that ``as_dict`` method and ``from_dict`` work as expected."""
 
-    ns = NutritionSet(
-        NutritionFact("sodium", Q_(10, "grams")),
-        NutritionFact("fat", Q_(11, "grams")),
-        NutritionFact("my metric", Q_(100, None))
-    )
-
-    assert ns.as_dict() == {
+    my_ns_dict = {
         "sodium": Q_(10, "grams"),
         "fat": Q_(11, "grams"),
         "my metric": Q_(100, None)
     }
+
+    ns_from_dict = NutritionSet.from_dict(my_ns_dict)
+
+    assert ns_from_dict.as_dict() == my_ns_dict
 
 
 def test_can_add_and_subtract_nutrition_set_instances():

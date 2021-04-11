@@ -6,7 +6,7 @@ from typing import Callable, Set
 import re
 from pint import UndefinedUnitError
 from glo.helpers import prep_ascii_str
-from ._ureg import Q_, simplified_div
+from glo.units import Q_, Q_class, simplified_div
 
 
 class BaseUnitParser(ABC):
@@ -96,7 +96,7 @@ class ASCIIUnitParser(BaseUnitParser):
 def get_num_servings(
     weight: str,
     serving_size: str,
-    div_func: Callable[[Q_, Q_], float] = simplified_div,
+    div_func: Callable[[Q_class, Q_class], float] = simplified_div,
     unit_parser: BaseUnitParser = ASCIIUnitParser(),
 ) -> float:
     """

@@ -21,6 +21,7 @@ numpy = "*"
 pandas = "*"
 sklearn = "*"
 torch = "*"
+pytorch-lightning = "*"
 pytest = { version = "*", optional = true }
 pytest-cov = { version = "*", optional = true }
 sphinx = { version = "*", optional = true }

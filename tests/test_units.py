@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import pytest
-from glo.features._ureg import Q_, _Q_class, simplified_div
+from glo.units import Q_, Q_class, simplified_div
 
 
 def test_Q_class_passes_is_instance_call():
-    """Assert _Q_class can be used to determine Quantity instances."""
+    """Assert Q_class can be used to determine Quantity instances."""
 
     my_quantity = Q_("10 seconds")
-    assert isinstance(my_quantity, _Q_class)
-    assert my_quantity.__class__ == _Q_class
+    assert isinstance(my_quantity, Q_class)
+    assert my_quantity.__class__ == Q_class
 
 
 def test_simplified_div_works_as_expected():

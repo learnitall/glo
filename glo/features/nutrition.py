@@ -5,7 +5,7 @@ from typing import Any, Callable, Iterable, Mapping, Union
 import collections
 from pint.quantity import Quantity
 from pint.unit import Unit
-from ._ureg import Q_, ureg
+from glo.units import Q_, ureg, BaseQuantityParser
 
 
 _NFOperator = Callable[
@@ -29,7 +29,7 @@ def _operator_overload_wrap(operator_func: _NFOperator) -> _NFOperator:
     that ``other`` is of the proper type and that both objects
     have the same ``name``. Additionally this method will return
     the ``NutritionFact`` instance that the operation is being
-     performed on to ensure that operations can be chained.
+    performed on to ensure that operations can be chained.
 
     If ``other`` is a ``float`` or an ``int``, then it will
     be passed to ``operator_func`` as a dimensionless quantity.
@@ -84,10 +84,13 @@ class NutritionFact:
     name: str
         String name of the nutrition fact. Examples include "sodium",
         "fat", or "calories".
-    quantity: pint.unit.Quantity
+    quantity: pint.unit.Quantity or str, optional
         Associated ``Quantity`` instance that determines value and units
         for the nutrition fact. If ``None`` is given, then quantity with
-        unit ``dimensionless`` and magnitude ``0`` is created.
+        unit ``dimensionless`` and magnitude ``0`` is created. If a
+        str is given, then an attempt will be made to convert it to
+        a pint Quantity.
+
 
     Attributes
     ----------
@@ -116,7 +119,7 @@ class NutritionFact:
     Examples
     --------
     >>> from glo.features.nutrition import NutritionFact
-    >>> from glo.features._ureg import ureg, Q_
+    >>> from glo.units import ureg, Q_
     >>> my_sodium = NutritionFact("sodium", Q_(250, "mg"))
     >>> my_sodium.name
     'sodium'
@@ -128,17 +131,32 @@ class NutritionFact:
     260
     >>> my_sodium.units = ureg.grams; my_sodium.quantity
     <Quantity(0.26, 'gram')>
+    >>> my_other_sodium = NutritionFact("sodium", "15 mg")
+    >>> my_other_sodium.amount
+    15
+    >>> (my_sodium + my_other_sodium).amount
+    0.275
+
+    See Also
+    --------
+    pint.unit.Quantity
     """
 
     __slots__ = ["_name", "quantity"]
 
-    def __init__(self, name: str, quantity: Quantity = None):
+    def __init__(
+        self,
+        name: str,
+        quantity: Union[Quantity, str] = None,
+    ):
         """NutritionFact constructor."""
 
         self._name = name
 
         if quantity is None:
             self.quantity = Q_(0, None)
+        elif isinstance(quantity, str):
+            self.quantity = Q_(quantity)
         else:
             self.quantity = quantity
 
@@ -216,6 +234,9 @@ class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
     as_dict:
         Return dictionary representation of NutritionSet instance.
         See method docstring below.
+    from_dict:
+        Return a new NutritionSet from a given dictionary. See method
+        docstring below.
     clear:
         See ``dict.clear``.
     get:
@@ -239,7 +260,7 @@ class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
     Examples
     --------
     >>> from glo.features.nutrition import NutritionFact, NutritionSet
-    >>> from glo.features._ureg import Q_
+    >>> from glo.units import Q_
     >>> sodium = NutritionFact("sodium", Q_(10, "grams"))
     >>> protein = NutritionFact("protein", Q_(15, "grams"))
     >>> fat = NutritionFact("fat", Q_(5, "grams"))
@@ -318,11 +339,38 @@ class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
         Return ``dict`` representing this ``NutritionSet``.
 
         Keys in returned dictionary are ``NutritionFact`` names, and
-        values are their associated ``Quantities`` in this
-        ``NutritionSet``.
+        values are their associated Quantity in this ``NutritionSet``.
         """
 
         return {nf.name: nf.quantity for nf in self.data.values()}
+
+    @classmethod
+    def from_dict(
+        cls,
+        nf_dict: Union[Mapping[str, str], Mapping[str, Quantity]],
+    ) -> "NutritionSet":
+        """
+        Creates a new ``NutritionSet`` from a ``dict``.
+
+        Parameters
+        ----------
+        nf_dict: dict mapping str to str, or str to pint Quantity
+            Keys in the given dictionary should be ``NutritionFact``
+            names, and the values are their associated quantity. The
+            values can either be strings, which will be parsed into
+            a pint ``Quantity``, or a pint ``Quantity`` itself.
+
+        Returns
+        -------
+        NutritionFact
+        """
+
+        return cls(
+            *[
+                NutritionFact(name=name, quantity=quantity)
+                for name, quantity in nf_dict.items()
+            ]
+        )
 
     def update(  # pylint: disable=arguments-differ
         self,
@@ -362,7 +410,7 @@ class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
         --------
         >>> # Say we have the following variables to start with:
         >>> from glo.features.nutrition import NutritionFact, NutritionSet
-        >>> from glo.features._ureg import Q_
+        >>> from glo.units import Q_
         >>> sodium = NutritionFact("sodium", Q_(10, "grams"))
         >>> protein = NutritionFact("protein", Q_(15, "grams"))
         >>> fat = NutritionFact("fat", Q_(5, "grams"))

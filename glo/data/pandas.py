@@ -21,7 +21,7 @@ class PandasDataset(Dataset):
     Attributes
     ----------
     frame: pandas Dataframe
-         Pandas DataFrame being used in the background.
+        Pandas DataFrame being used in the background.
     """
 
     def __init__(self, frame: pd.DataFrame):
