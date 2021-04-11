@@ -5,7 +5,7 @@ from typing import Any, Callable, Iterable, Mapping, Union
 import collections
 from pint.quantity import Quantity
 from pint.unit import Unit
-from glo.units import Q_, ureg, BaseQuantityParser
+from glo.units import Q_, ureg
 
 
 _NFOperator = Callable[

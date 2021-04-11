@@ -5,9 +5,7 @@ import os
 import pandas as pd
 import numpy as np
 from sklearn.pipeline import make_pipeline
-from pytorch_lightning import LightningDataModule
-from torch.utils.data import DataLoader
-from glo.transform import BaseTransform, TransformCompose
+from glo.transform import BaseTransform
 from glo.units import ureg, Q_, Q_class, simplified_div
 from glo.features.serving import (
     ASCIIUnitParser,
@@ -103,7 +101,9 @@ class TransformServing(BaseTransform):
         super().__init__(**kwargs)
 
     @staticmethod
-    def div_func(q1: Q_class, q2: Q_class) -> float:
+    def div_func(  # pylint: disable=invalid-name
+        q1: Q_class, q2: Q_class
+    ) -> float:
         """
         Return float of simplified division of quantities.
 
@@ -338,7 +338,7 @@ class ScrapyKingSoopersDataSet(PandasDataset):
             TransformNutrition(),
             TransformAllergen(),
             TransformServing(),
-            TransformPrice(method=price_method)
+            TransformPrice(method=price_method),
         )
 
         super().__init__(

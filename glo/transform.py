@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """Classes for working with Transforms compatible with pytorch."""
 from typing import List
-from sklearn.preprocessing import FunctionTransformer
 import functools
+from sklearn.preprocessing import FunctionTransformer
 
 
 class BaseTransform(FunctionTransformer):
@@ -54,7 +54,7 @@ class TransformCompose(BaseTransform):
         super().__init__(**kwargs)
         self.transforms = transforms
 
-    def transform(self, sample):
+    def __call__(self, sample):
         return functools.reduce(
             lambda output, t_func: t_func(output), self.transforms, sample
         )

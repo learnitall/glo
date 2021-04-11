@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Initialize unit registry from ``pint`` module."""
-import pint
 from abc import ABC, abstractmethod
+import pint
 
 ureg = pint.UnitRegistry(system="SI")
 Q_ = ureg.Quantity
 Q_class = Q_("1337 seconds").__class__
 
 
-def simplified_div(
+def simplified_div(  # pylint: disable=invalid-name
     q1: Q_class, q2: Q_class
-) -> float:  # pylint: disable=invalid-name
+) -> float:
     """
     Return float of simplified division of quantities.
 
