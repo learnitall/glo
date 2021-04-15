@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """Torch Lightning DataModule for KingSoopers data."""
 import os
+from typing import Union
 import pandas as pd
 import numpy as np
 from sklearn.pipeline import make_pipeline
@@ -190,10 +191,10 @@ class TransformAllergen(BaseTransform):
 
     def __call__(self, food_item: pd.Series) -> pd.Series:
         result = food_item.copy(deep=True)
-
-        result["allergens"] = self.parser.find_allergen_strs(
-            food_item["allergens"]
-        )
+        if result.get("allergens", False):
+            result["allergens"] = self.parser.find_allergen_strs(
+                food_item["allergens"]
+            )
         return result
 
 
@@ -281,6 +282,38 @@ class TransformPrice(BaseTransform):
         return result
 
 
+class TransformMissing(BaseTransform):
+    """
+    Set each column to ``np.nan`` if missing critical information.
+
+    Parameters
+    ----------
+    expected_columns: dict
+        Expected column names for keys, their expected types as
+        values. If the column name is missing, or if one of the
+        expected types is incorrect, then return ``np.nan``.
+
+    Attributes
+    ----------
+    ec: dict
+        Stores the given parameter ``expected_columns``.
+    """
+
+    def __init__(self, expected_columns: dict, **kwargs):
+        self.ec = expected_columns
+        super().__init__(**kwargs)
+
+    def __call__(self, sample: pd.Series) -> Union[pd.Series, np.NAN]:
+        for key, value in self.ec.items():
+            samp_val = sample.get(key, None)
+            if samp_val is None:
+                return np.nan
+            elif not isinstance(samp_val, value):
+                return np.nan
+            else:
+                return sample
+
+
 class ScrapyKingSoopersDataSet(PandasDataset):
     """
     Load and clean a raw KingSoopers Scrapy Dataset.
@@ -307,6 +340,9 @@ class ScrapyKingSoopersDataSet(PandasDataset):
     transforms: TransformCompose
         TransformCompose instance which represents the steps for
         cleaning the KingSoopers dataset.
+    EXPECTED_COLUMNS: dict
+        Expected columns and there types. Will be passed to
+        ``TransformMissing``.
 
     See Also
     --------
@@ -314,7 +350,15 @@ class ScrapyKingSoopersDataSet(PandasDataset):
     glo.data.kingsoopers.TransformNutrition
     glo.data.kingsoopers.TransformPrice
     glo.data.kingsoopers.TransformServing
+    glo.data.kingsoopers.TransformMissing
     """
+
+    EXPECTED_COLUMNS = {
+        "nutrition": dict,
+        "price": dict,
+        "weight": str,
+        "serving": str,
+    }
 
     def __init__(
         self,
@@ -323,18 +367,9 @@ class ScrapyKingSoopersDataSet(PandasDataset):
         price_method: str = PICKUP,
     ):
         self.file_path = os.path.abspath(file_path)
-        self.is_clean = is_clean
-        """
-        self.transform = TransformCompose(
-            [
-                TransformNutrition(),
-                TransformAllergen(),
-                TransformServing(),
-                TransformPrice(method=price_method),
-            ]
-        )
-        """
+        self._is_clean = is_clean
         self.transform = make_pipeline(
+            TransformMissing(self.EXPECTED_COLUMNS),
             TransformNutrition(),
             TransformAllergen(),
             TransformServing(),
@@ -348,4 +383,8 @@ class ScrapyKingSoopersDataSet(PandasDataset):
         )
 
     def __getitem__(self, idx):
-        return self.transform.fit_transform(super().__getitem__(idx))
+        item = self.__getitem__(idx)
+        if self._is_clean:
+            return item
+        else:
+            return self.transform.fit_transform(item)
