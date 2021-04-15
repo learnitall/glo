@@ -31,4 +31,4 @@ class PandasDataset(Dataset):
         return len(self.frame)
 
     def __getitem__(self, idx):
-        return self.frame.iloc[idx, :]
+        return self.frame.iloc[idx]
