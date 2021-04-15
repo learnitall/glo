@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Classes for working with Transforms compatible with pytorch."""
-from typing import List
+from typing import List, Union
 import functools
+import pandas as pd
 from sklearn.preprocessing import FunctionTransformer
 
 
@@ -20,6 +21,63 @@ class BaseTransform(FunctionTransformer):
 
     def __call__(self, sample):
         return sample
+
+
+class PandasBaseTransfrom(BaseTransform):
+    """
+    Base class for building transforms on Pandas dataframes.
+
+    To use, override the ``transform_series`` method, (which
+    takes in a pandas Series, transforms it, then returns
+    the transformed series), and/or the ``transform_dataframe``
+    method, (which does the same except for DataFrames).
+    The ``__call__`` method will call either the series
+    transform method or the dataframe transform method,
+    depending on the type of input that was given. This means
+    that this transform can be used on both Pandas Series
+    and DataFrames
+
+    The ``transform_dataframe`` method by default will apply
+    ``transform_series`` on each row in the given dataframe.
+    """
+
+    def transform_series(self, X: pd.Series) -> pd.Series:
+        """
+        Transform the given series and return the result.
+
+        By default, just returns the given Series.
+
+        Parameters
+        ----------
+        X: pd.Series
+            Pandas Series to transform.
+        """
+
+        return X
+
+    def transform_dataframe(self, X: pd.DataFrame) -> pd.DataFrame:
+        """
+        Transform the given dataframe and return the result.
+
+        By default this function will apply ``transform_series``
+        on each row of the given dataframe.
+
+        Parameters
+        ----------
+        X: pd.DataFrame
+            Pandas DataFrame to transform.
+        """
+
+        return X.apply(self.transform_series, axis=1)
+
+    def __call__(
+        self, X: Union[pd.DataFrame, pd.Series]
+    ) -> Union[pd.DataFrame, pd.Series]:
+
+        if isinstance(X, pd.DataFrame):
+            return self.transform_dataframe(X)
+        else:
+            return self.transform_series(X)
 
 
 class TransformCompose(BaseTransform):
