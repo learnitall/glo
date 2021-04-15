@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 """Torch Lightning DataModule for KingSoopers data."""
 import os
-from typing import Union
+from typing import Callable, Union
 import pandas as pd
 import numpy as np
 from sklearn.pipeline import make_pipeline
-from glo.transform import BaseTransform
+from glo.transform import BaseTransform, PandasBaseTransfrom
 from glo.units import ureg, Q_, Q_class, simplified_div
 from glo.features.serving import (
     ASCIIUnitParser,
@@ -76,7 +76,45 @@ ureg.define("Retinol_Activity_Equivalent = [] = mcg_RAE")
 ureg.define("milliequivalent = [] = mEq = meq")
 
 
-class TransformServing(BaseTransform):
+def filter_nan_wrap(
+    func: Callable[
+        [BaseTransform, Union[pd.Series, float]], Union[pd.Series, float]
+    ]
+) -> Callable[
+    [BaseTransform, Union[pd.Series, float]], Union[pd.Series, float]
+]:
+    """
+    Wrapper for transforms to only call transform if input is ``np.nan``.
+
+    This funtion is meant to wrap the ``__call__`` method of
+    subclasses for ``BaseTransform``. It could very well be
+    rewritten as a metaclass, however, this option works too and may
+    be more useful in the future.
+
+    Parameters
+    ----------
+    func: callable
+        Given function to wrap
+
+    Returns
+    -------
+    callable
+        If given sample is ``np.nan``, then will return sample.
+        Otherwise, call the wrapped function.
+    """
+
+    def wrapped(
+        self: BaseTransform, sample: Union[pd.Series, float]
+    ) -> Union[pd.Series, float]:
+        if sample.isna().values.all(axis=0):
+            return sample
+        else:
+            return func(self, sample)
+
+    return wrapped
+
+
+class TransformServing(PandasBaseTransfrom):
     """
     Add ``servings`` column to the dataset.
 
@@ -146,7 +184,8 @@ class TransformServing(BaseTransform):
 
         return simplified_div(q1, q2)
 
-    def __call__(self, food_item: pd.Series) -> pd.Series:
+    @filter_nan_wrap
+    def transform_series(self, food_item: pd.Series) -> pd.Series:
         result = food_item.copy(deep=True)
 
         # king soopers reports as fl oz, pint uses floz
@@ -165,7 +204,7 @@ class TransformServing(BaseTransform):
         return result
 
 
-class TransformAllergen(BaseTransform):
+class TransformAllergen(PandasBaseTransfrom):
     """
     Set ``allergens`` column of dataset to parsed allergens.
 
@@ -189,7 +228,8 @@ class TransformAllergen(BaseTransform):
         self.parser = parser
         super().__init__(**kwargs)
 
-    def __call__(self, food_item: pd.Series) -> pd.Series:
+    @filter_nan_wrap
+    def transform_series(self, food_item: pd.Series) -> pd.Series:
         result = food_item.copy(deep=True)
         if result.get("allergens", False):
             result["allergens"] = self.parser.find_allergen_strs(
@@ -198,7 +238,7 @@ class TransformAllergen(BaseTransform):
         return result
 
 
-class TransformNutrition(BaseTransform):
+class TransformNutrition(PandasBaseTransfrom):
     """
     Set ``nutrition`` column of dataset to parsed nutrition info.
 
@@ -223,19 +263,20 @@ class TransformNutrition(BaseTransform):
         "Grams Per Cubic Centimetre": "g / cm ** 3",
     }
 
-    def __call__(self, food_item: pd.Series) -> pd.Series:
+    @filter_nan_wrap
+    def transform_series(self, food_item: pd.Series) -> pd.Series:
         result = food_item.copy(deep=True)
 
         for key, value in result["nutrition"].items():
             result["nutrition"][key] = replace_multiple_substrings(
-                value, self.ALIASES
+                value.lower(), self.ALIASES
             )
 
         result["nutrition"] = NutritionSet.from_dict(result["nutrition"])
         return result
 
 
-class TransformPrice(BaseTransform):
+class TransformPrice(PandasBaseTransfrom):
     """
     Set ``price`` column of dataset to price of picked price method.
 
@@ -276,13 +317,14 @@ class TransformPrice(BaseTransform):
         self.method = method
         super().__init__(**kwargs)
 
-    def __call__(self, sample: pd.Series) -> pd.Series:
+    @filter_nan_wrap
+    def transform_series(self, sample: pd.Series) -> pd.Series:
         result = sample.copy(deep=True)
         result["price"] = sample["price"].get(self.method, np.nan)
         return result
 
 
-class TransformMissing(BaseTransform):
+class TransformMissing(PandasBaseTransfrom):
     """
     Set each column to ``np.nan`` if missing critical information.
 
@@ -292,26 +334,42 @@ class TransformMissing(BaseTransform):
         Expected column names for keys, their expected types as
         values. If the column name is missing, or if one of the
         expected types is incorrect, then return ``np.nan``.
+    fill_nan: bool
+        If True, then if any of the expected columns are ``np.nan``, then
+        transform the entire series to ``np.nan``.
 
     Attributes
     ----------
-    ec: dict
+    expected_columns: dict
         Stores the given parameter ``expected_columns``.
+    fill_nan: dict
+        Stores the given parameter ``fill_nan``.
+    missing_count: dict
+        Keys are the columns from expected_columns, values are the
+        number of columns that were deemed invalid.
     """
 
-    def __init__(self, expected_columns: dict, **kwargs):
-        self.ec = expected_columns
+    def __init__(
+        self, expected_columns: dict, fill_nan: bool = True, **kwargs
+    ):
+        self.expected_columns = expected_columns
+        self.fill_nan = fill_nan
+        self.missing_count = dict()
         super().__init__(**kwargs)
 
-    def __call__(self, sample: pd.Series) -> Union[pd.Series, np.NAN]:
-        for key, value in self.ec.items():
+    @filter_nan_wrap
+    def transform_series(self, sample: pd.Series) -> Union[pd.Series, float]:
+        for key, value in self.expected_columns.items():
             samp_val = sample.get(key, None)
-            if samp_val is None:
+            if (
+                samp_val is None
+                or (self.fill_nan and samp_val is np.nan)
+                or not isinstance(samp_val, value)
+            ):
+                self.missing_count[key] = self.missing_count.get(key, 0) + 1
                 return np.nan
-            elif not isinstance(samp_val, value):
-                return np.nan
-            else:
-                return sample
+
+        return sample
 
 
 class ScrapyKingSoopersDataSet(PandasDataset):
@@ -367,9 +425,8 @@ class ScrapyKingSoopersDataSet(PandasDataset):
         price_method: str = PICKUP,
     ):
         self.file_path = os.path.abspath(file_path)
-        self._is_clean = is_clean
         self.transform = make_pipeline(
-            TransformMissing(self.EXPECTED_COLUMNS),
+            TransformMissing(self.EXPECTED_COLUMNS, True),
             TransformNutrition(),
             TransformAllergen(),
             TransformServing(),
@@ -379,12 +436,11 @@ class ScrapyKingSoopersDataSet(PandasDataset):
         super().__init__(
             pd.read_json(
                 self.file_path, orient="columns", typ="frame", lines=True
-            ).dropna()
+            )
         )
 
+        if not is_clean:
+            self.frame = self.transform.fit_transform(self.frame).dropna()
+
     def __getitem__(self, idx):
-        item = self.__getitem__(idx)
-        if self._is_clean:
-            return item
-        else:
-            return self.transform.fit_transform(item)
+        return super().__getitem__(idx)
