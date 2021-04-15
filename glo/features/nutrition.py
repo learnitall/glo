@@ -5,7 +5,7 @@ from typing import Any, Callable, Iterable, Mapping, Union
 import collections
 from pint.quantity import Quantity
 from pint.unit import Unit
-from glo.units import Q_, ureg
+from glo.units import Q_, ureg, BaseUnitParser, get_quantity_from_str
 
 
 _NFOperator = Callable[
@@ -90,6 +90,11 @@ class NutritionFact:
         unit ``dimensionless`` and magnitude ``0`` is created. If a
         str is given, then an attempt will be made to convert it to
         a pint Quantity.
+    parser: BaseUnitParser, optional
+        Parser to use when parsing the given quantity. If not given,
+        not parsing will be done. Defaults to ``None``. Will not
+        be user if the given quantity parameter is already a
+        pint quantity.
 
 
     Attributes
@@ -115,6 +120,8 @@ class NutritionFact:
         ``self.quantity = self.quantity.to(self.amount, unit)``
 
         Getting this attribute is equivalent to ``self.quantity.units``.
+    parser: BaseUnitParser
+        Parser that was used to parse given quantity.
 
     Examples
     --------
@@ -142,21 +149,28 @@ class NutritionFact:
     pint.unit.Quantity
     """
 
-    __slots__ = ["_name", "quantity"]
+    __slots__ = ["_name", "quantity", "parser"]
 
     def __init__(
         self,
         name: str,
         quantity: Union[Quantity, str] = None,
+        parser: BaseUnitParser = None,
     ):
         """NutritionFact constructor."""
 
         self._name = name
+        self.parser = parser
 
         if quantity is None:
             self.quantity = Q_(0, None)
         elif isinstance(quantity, str):
-            self.quantity = Q_(quantity)
+            if parser is None:
+                self.quantity = Q_(quantity)
+            else:
+                self.quantity = get_quantity_from_str(
+                    quantity, self.parser
+                ).pop()
         else:
             self.quantity = quantity
 
@@ -348,6 +362,7 @@ class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
     def from_dict(
         cls,
         nf_dict: Union[Mapping[str, str], Mapping[str, Quantity]],
+        parser: BaseUnitParser = None,
     ) -> "NutritionSet":
         """
         Creates a new ``NutritionSet`` from a ``dict``.
@@ -359,6 +374,9 @@ class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
             names, and the values are their associated quantity. The
             values can either be strings, which will be parsed into
             a pint ``Quantity``, or a pint ``Quantity`` itself.
+        parser: BaseUnitParser, optional
+            UnitParser for parsing units from the given dict.
+            Defaults to ``None``.
 
         Returns
         -------
@@ -367,7 +385,7 @@ class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
 
         return cls(
             *[
-                NutritionFact(name=name, quantity=quantity)
+                NutritionFact(name=name, quantity=quantity, parser=parser)
                 for name, quantity in nf_dict.items()
             ]
         )

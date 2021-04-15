@@ -13,18 +13,18 @@ def test_ascii_allergen_parser_works_as_expected():
             "may contain soybean and its derivatives,tree "
             "nuts and their derivatives",
             {"tree nuts", "soybean", "tree nuts"},
-            set()
+            set(),
         ],
         [
             "undeclared does not contain declaration🦠 obligatory allergens",
             set(),
-            {DOA}
+            {DOA},
         ],
         [
             "contains🦠 sunflower seeds and their derivatives. free from does "
             "not contain declaration obligatory allergens.",
             {"sunflower seeds"},
-            {DOA}
+            {DOA},
         ],
         [
             "contains soybean and its derivatives,milk and its derivatives. "
@@ -32,10 +32,15 @@ def test_ascii_allergen_parser_works_as_expected():
             "derivatives,contains traces of tree nuts, i.e. almonds, various "
             "kinds of tree nuts,peanuts and their derivatives",
             {
-                "soybean", "milk", "wheat", "eggs", "tree nuts", "almonds",
-                "peanuts"
+                "soybean",
+                "milk",
+                "wheat",
+                "eggs",
+                "tree nuts",
+                "almonds",
+                "peanuts",
             },
-            set()
+            set(),
         ],
         [
             "free from crustaceans and their derivatives,wheat and their "
@@ -45,26 +50,32 @@ def test_ascii_allergen_parser_works_as_expected():
             "derivatives.",
             set(),
             {
-                "crustaceans", "wheat", "eggs", "fish", "soybean", "milk",
-                "tree nuts", "peanuts"
-            }
+                "crustaceans",
+                "wheat",
+                "eggs",
+                "fish",
+                "soybean",
+                "milk",
+                "tree nuts",
+                "peanuts",
+            },
         ],
         [
             "not intentionally nor inherently included does not contain "
             "declaration obligatory allergens.🦠🦠🦠🦠",
             set(),
-            {DOA}
+            {DOA},
         ],
         [
             "🦠🦠🦠🦠contains does not contain declaration obligatory allergens.",
             set(),
-            {DOA}
+            {DOA},
         ],
         [
             "not intentionally nor inherently included does not contain "
             "declaration obligatory allergens.",
             set(),
-            {DOA}
+            {DOA},
         ],
         [
             "contains cashew and 🦠🦠cashew products,walnut and walnut products,"
@@ -74,18 +85,22 @@ def test_ascii_allergen_parser_works_as_expected():
             "and their derivatives,soybean and its derivatives,milk and "
             "its derivatives",
             {
-                "cashew and cashew products", "walnut and walnut products",
-                "cocoa", "almond and almond products", "peanuts", "tree nuts"
+                "cashew and cashew products",
+                "walnut and walnut products",
+                "cocoa",
+                "almond and almond products",
+                "peanuts",
+                "tree nuts",
             },
-            {"eggs", "soybean", "milk"}
+            {"eggs", "soybean", "milk"},
         ],
         ["this sentence doesn't have any keywords in it", None, None],
         ["same with this 🦠sentence. and this one.", None, None],
         [
             "undeclared does not contain declaration obligatory🦠 allergens.",
             set(),
-            {DOA}
-        ]
+            {DOA},
+        ],
     ]
 
     aap = ASCIIAllergenParser()

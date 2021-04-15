@@ -42,7 +42,7 @@ def test_prep_ascii_str():
         "25 ☆s": "25 s",
         "     lots of whitespace   ": "lots of whitespace",
         "I'M ALL✅ CAPS   ✅✅": "i'm all caps",
-        "  GO AWAY 🦠 ": "go away"
+        "  GO AWAY 🦠 ": "go away",
     }
 
     for p, a in test_strs.items():

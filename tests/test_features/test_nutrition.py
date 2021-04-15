@@ -36,7 +36,7 @@ def test_edit_basic_nutrition_fact_instance():
     assert nf.amount == 10
 
     # Change units to milligrams by modifying quantity attribute
-    nf.quantity = nf.quantity.to('milligrams')
+    nf.quantity = nf.quantity.to("milligrams")
     assert nf.units == ureg.milligrams
     assert nf.amount == 10000
 
@@ -65,14 +65,14 @@ def test_operator_overloads_nutrition_fact():
     with pytest.raises(TypeError):
         nf1 - 15
 
-    _locals = {'nf1': nf1, 'nf3': nf3}
-    for op in ('+', '-', '*', '/'):
+    _locals = {"nf1": nf1, "nf3": nf3}
+    for op in ("+", "-", "*", "/"):
         # Doesn't make sense to do these operations with strings
         with pytest.raises(TypeError):
             eval(f'nf1 {op} "I am a string"', _locals)
         with pytest.raises(ValueError):
             # Doesn't make sense to do operations with sodium and calories
-            eval(f'nf1 {op} nf3', _locals)
+            eval(f"nf1 {op} nf3", _locals)
 
     assert round((nf1 + q).amount, ndigits=2) == 10.03
     assert round((nf1 + nf2).amount, ndigits=1) == 21.2
@@ -103,7 +103,7 @@ def test_create_basic_nutrition_set_instance():
     ns = NutritionSet(
         NutritionFact("sodium", Q_(10, "grams")),
         NutritionFact("fat", Q_(11, "grams")),
-        NutritionFact("my metric", Q_(100, None))
+        NutritionFact("my metric", Q_(100, None)),
     )
 
     assert ns["sodium"].quantity == Q_(10, "grams")
@@ -139,9 +139,7 @@ def test_update_method_nutrition_set():
     nf1 = NutritionFact("sodium", Q_(10, "grams"))
     nf2 = NutritionFact("fat", Q_(11, "grams"))
     nf3 = NutritionFact("my metric", Q_(100, None))
-    ns2 = NutritionSet(
-        NutritionFact("protein", Q_(15, "grams"))
-    )
+    ns2 = NutritionSet(NutritionFact("protein", Q_(15, "grams")))
 
     for nf_name in ("sodium", "fat", "my metric", "protein"):
         assert ns.get(nf_name).amount == 0
@@ -174,12 +172,12 @@ def test_update_method_when_given_bad_types():
     """Test ``NutritionSet.update`` raises ``TypeErrors`` appropriately."""
 
     bad_params = [
-        '10',
+        "10",
         10,
         range(15),
         Q_(10, "grams"),
-        {'sodium': 15},
-        {15: Q_(10, "grams")}
+        {"sodium": 15},
+        {15: Q_(10, "grams")},
     ]
 
     ns = NutritionSet()
@@ -193,12 +191,7 @@ def test_update_method_nutrition_set_raises_errors_on_bad_types():
     """Test that ``TypeError` is raised with ``NutritionSet.update``."""
 
     ns = NutritionSet()
-    args = (
-        "hey there",
-        {10: Q_(10, "grams")},
-        {"sodium", 10},
-        153
-    )
+    args = ("hey there", {10: Q_(10, "grams")}, {"sodium", 10}, 153)
     for a in args:
         with pytest.raises(TypeError):
             ns.update(a)
@@ -214,7 +207,7 @@ def test_nutrition_fact_as_dict_and_from_dict_methods():
     my_ns_dict = {
         "sodium": Q_(10, "grams"),
         "fat": Q_(11, "grams"),
-        "my metric": Q_(100, None)
+        "my metric": Q_(100, None),
     }
 
     ns_from_dict = NutritionSet.from_dict(my_ns_dict)
@@ -226,14 +219,14 @@ def test_can_add_and_subtract_nutrition_set_instances():
     """Test that we can add and subtract ``NutritionSet`` instances."""
 
     ns_dict1 = {
-        'sodium': Q_(10, 'milligrams'),
-        'fat': Q_(15, 'grams'),
-        'protein': Q_(5, 'grams')
+        "sodium": Q_(10, "milligrams"),
+        "fat": Q_(15, "grams"),
+        "protein": Q_(5, "grams"),
     }
     ns_dict2 = {
-        'sodium': Q_(5, 'grams'),
-        'fat': Q_(15, 'grams'),
-        'trans fat': Q_(8, 'grams')
+        "sodium": Q_(5, "grams"),
+        "fat": Q_(15, "grams"),
+        "trans fat": Q_(8, "grams"),
     }
 
     ns1 = NutritionSet()
@@ -243,15 +236,15 @@ def test_can_add_and_subtract_nutrition_set_instances():
     ns2.update(ns_dict2)
 
     assert (ns1 + ns2).as_dict() == {
-        'sodium': Q_(5010, 'milligram'),
-        'fat': Q_(30, 'grams'),
-        'protein': Q_(5, 'grams'),
-        'trans fat': Q_(8, 'grams')
+        "sodium": Q_(5010, "milligram"),
+        "fat": Q_(30, "grams"),
+        "protein": Q_(5, "grams"),
+        "trans fat": Q_(8, "grams"),
     }
 
     assert (ns1 - ns2).as_dict() == {
-        'sodium': Q_(-4990, 'milligram'),
-        'fat': Q_(0, 'grams'),
-        'protein': Q_(5, 'grams'),
-        'trans fat': Q_(-8, 'grams')
+        "sodium": Q_(-4990, "milligram"),
+        "fat": Q_(0, "grams"),
+        "protein": Q_(5, "grams"),
+        "trans fat": Q_(-8, "grams"),
     }

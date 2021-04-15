@@ -17,8 +17,7 @@ def test_pandas_dataset_wraps_pandas_frame():
     """Assert PandasDataset wraps DataFrame and has Dataset API."""
 
     frame = pd.DataFrame(
-        np.arange(0, 6).reshape(2, -1),
-        columns=["a", "b", "c"]
+        np.arange(0, 6).reshape(2, -1), columns=["a", "b", "c"]
     )
     dataset = PandasDataset(frame)
 

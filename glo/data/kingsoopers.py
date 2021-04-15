@@ -3,22 +3,26 @@
 """Torch Lightning DataModule for KingSoopers data."""
 import os
 from typing import Callable, Union
+import warnings
 import pandas as pd
 import numpy as np
 from sklearn.pipeline import make_pipeline
 from glo.transform import BaseTransform, PandasBaseTransfrom
-from glo.units import ureg, Q_, Q_class, simplified_div
-from glo.features.serving import (
+from glo.units import (
+    ureg,
+    Q_,
+    Q_class,
+    simplified_div,
     ASCIIUnitParser,
+    UnitWithSpaceParser,
     BaseUnitParser,
-    get_num_servings,
 )
+from glo.features.serving import get_num_servings
 from glo.features.allergen import (
     ASCIIAllergenParser,
     BaseAllergyParser,
 )
 from glo.features.nutrition import NutritionSet
-from glo.helpers import replace_multiple_substrings
 from .pandas import PandasDataset
 
 
@@ -67,12 +71,18 @@ COUNT_UNITS = {
     "patty",
     "roll",
     "sandwich",
+    "softgels",
+    "soft_gels",
+    "tablet",
+    "chewable_tablet",
+    "lollipop",
 }
 ureg.define(f"count = [] = ct = {' = '.join(u for u in COUNT_UNITS)}")
 ureg.define("@alias microgram = mcg")
+ureg.define("@alias fluid_ounce = fl_oz")
 # https://www.dietarysupplementdatabase.usda.nih.gov/Conversions.php
-ureg.define("International_Unit = [] = IU")
-ureg.define("Retinol_Activity_Equivalent = [] = mcg_RAE")
+ureg.define("international_unit = [] = IU = number_of_international_units")
+ureg.define("retinol_activity_equivalent = [] = mcg_rae = retinol_equivalent")
 ureg.define("milliequivalent = [] = mEq = meq")
 
 
@@ -108,8 +118,7 @@ def filter_nan_wrap(
     ) -> Union[pd.Series, float]:
         if sample.isna().values.all(axis=0):
             return sample
-        else:
-            return func(self, sample)
+        return func(self, sample)
 
     return wrapped
 
@@ -185,21 +194,22 @@ class TransformServing(PandasBaseTransfrom):
         return simplified_div(q1, q2)
 
     @filter_nan_wrap
-    def transform_series(self, food_item: pd.Series) -> pd.Series:
-        result = food_item.copy(deep=True)
+    def transform_series(self, series: pd.Series) -> Union[pd.Series, float]:
+        result = series.copy(deep=True)
 
-        # king soopers reports as fl oz, pint uses floz
-        weight = food_item["weight"].replace("fl oz", "floz")
-        serving_size = food_item["serving"].replace("fl oz", "floz")
+        weight = series["weight"]
+        serving_size = series["serving"]
         try:
             servings = get_num_servings(
-                weight, serving_size, div_func=self.div_func
+                weight,
+                serving_size,
+                div_func=self.div_func,
+                unit_parser=self.parser,
             )
-        except ValueError:
-            servings = np.nan
+        except ValueError as exception:
+            warnings.warn(exception.args[0], RuntimeWarning)
+            return np.nan
 
-        del result["serving"]
-        del result["weight"]
         result["servings"] = servings
         return result
 
@@ -229,11 +239,11 @@ class TransformAllergen(PandasBaseTransfrom):
         super().__init__(**kwargs)
 
     @filter_nan_wrap
-    def transform_series(self, food_item: pd.Series) -> pd.Series:
-        result = food_item.copy(deep=True)
+    def transform_series(self, series: pd.Series) -> pd.Series:
+        result = series.copy(deep=True)
         if result.get("allergens", False):
             result["allergens"] = self.parser.find_allergen_strs(
-                food_item["allergens"]
+                series["allergens"]
             )
         return result
 
@@ -245,34 +255,42 @@ class TransformNutrition(PandasBaseTransfrom):
     For KingSoopers, this involves making some replacements in the
     unit strings and parsing the information into a NutritionSet.
 
+    Parameters
+    ----------
+    parser: BaseUnitParser
+        Set ``parser`` attribute. Defaults to
+        ``glo.features.serving.ASCIIUnitParser()``.
+
     Attributes
     ----------
     ALIASES: mapping of str to str
         Maps substrings that could be found in the unit strings
         of the nutrition dict and their replacements.
+    parser: BaseUnitParser
+        Passed to ``unit_parser`` of
+        ``glo.features.serving.get_num_servings``.
 
     See Also
     --------
-    glo.helpers.replace_multiple_substrings
     glo.features.nutrition.NutritionSet
     """
 
-    ALIASES = {
-        "Number of International Units": "IU",
-        "International Unit": "IU",
-        "Grams Per Cubic Centimetre": "g / cm ** 3",
-    }
+    def __init__(self, parser: BaseUnitParser = ASCIIUnitParser(), **kwargs):
+        self.parser = parser
+        super().__init__(**kwargs)
 
     @filter_nan_wrap
-    def transform_series(self, food_item: pd.Series) -> pd.Series:
-        result = food_item.copy(deep=True)
-
-        for key, value in result["nutrition"].items():
-            result["nutrition"][key] = replace_multiple_substrings(
-                value.lower(), self.ALIASES
+    def transform_series(self, series: pd.Series) -> pd.Series:
+        result = series.copy(deep=True)
+        try:
+            result["nutrition"] = NutritionSet.from_dict(
+                result["nutrition"], parser=self.parser
             )
-
-        result["nutrition"] = NutritionSet.from_dict(result["nutrition"])
+        except KeyError:
+            warnings.warn(
+                f"Unable to create NutritionSet: {result['nutrition']}",
+                RuntimeWarning,
+            )
         return result
 
 
@@ -318,9 +336,9 @@ class TransformPrice(PandasBaseTransfrom):
         super().__init__(**kwargs)
 
     @filter_nan_wrap
-    def transform_series(self, sample: pd.Series) -> pd.Series:
-        result = sample.copy(deep=True)
-        result["price"] = sample["price"].get(self.method, np.nan)
+    def transform_series(self, series: pd.Series) -> pd.Series:
+        result = series.copy(deep=True)
+        result["price"] = series["price"].get(self.method, np.nan)
         return result
 
 
@@ -358,9 +376,9 @@ class TransformMissing(PandasBaseTransfrom):
         super().__init__(**kwargs)
 
     @filter_nan_wrap
-    def transform_series(self, sample: pd.Series) -> Union[pd.Series, float]:
+    def transform_series(self, series: pd.Series) -> Union[pd.Series, float]:
         for key, value in self.expected_columns.items():
-            samp_val = sample.get(key, None)
+            samp_val = series.get(key, None)
             if (
                 samp_val is None
                 or (self.fill_nan and samp_val is np.nan)
@@ -369,7 +387,7 @@ class TransformMissing(PandasBaseTransfrom):
                 self.missing_count[key] = self.missing_count.get(key, 0) + 1
                 return np.nan
 
-        return sample
+        return series
 
 
 class ScrapyKingSoopersDataSet(PandasDataset):
@@ -416,6 +434,7 @@ class ScrapyKingSoopersDataSet(PandasDataset):
         "price": dict,
         "weight": str,
         "serving": str,
+        "allergens": str,
     }
 
     def __init__(
@@ -427,9 +446,9 @@ class ScrapyKingSoopersDataSet(PandasDataset):
         self.file_path = os.path.abspath(file_path)
         self.transform = make_pipeline(
             TransformMissing(self.EXPECTED_COLUMNS, True),
-            TransformNutrition(),
+            TransformNutrition(UnitWithSpaceParser()),
             TransformAllergen(),
-            TransformServing(),
+            TransformServing(UnitWithSpaceParser()),
             TransformPrice(method=price_method),
         )
 
@@ -441,6 +460,3 @@ class ScrapyKingSoopersDataSet(PandasDataset):
 
         if not is_clean:
             self.frame = self.transform.fit_transform(self.frame).dropna()
-
-    def __getitem__(self, idx):
-        return super().__getitem__(idx)

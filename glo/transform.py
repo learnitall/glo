@@ -41,7 +41,9 @@ class PandasBaseTransfrom(BaseTransform):
     ``transform_series`` on each row in the given dataframe.
     """
 
-    def transform_series(self, X: pd.Series) -> pd.Series:
+    def transform_series(  # pylint: disable=no-self-use
+        self, series: pd.Series
+    ) -> pd.Series:
         """
         Transform the given series and return the result.
 
@@ -49,13 +51,13 @@ class PandasBaseTransfrom(BaseTransform):
 
         Parameters
         ----------
-        X: pd.Series
+        series: pd.Series
             Pandas Series to transform.
         """
 
-        return X
+        return series
 
-    def transform_dataframe(self, X: pd.DataFrame) -> pd.DataFrame:
+    def transform_dataframe(self, dataframe: pd.DataFrame) -> pd.DataFrame:
         """
         Transform the given dataframe and return the result.
 
@@ -64,20 +66,19 @@ class PandasBaseTransfrom(BaseTransform):
 
         Parameters
         ----------
-        X: pd.DataFrame
+        df: pd.DataFrame
             Pandas DataFrame to transform.
         """
 
-        return X.apply(self.transform_series, axis=1)
+        return dataframe.apply(self.transform_series, axis=1)
 
     def __call__(
-        self, X: Union[pd.DataFrame, pd.Series]
+        self, sample: Union[pd.DataFrame, pd.Series]
     ) -> Union[pd.DataFrame, pd.Series]:
 
-        if isinstance(X, pd.DataFrame):
-            return self.transform_dataframe(X)
-        else:
-            return self.transform_series(X)
+        if isinstance(sample, pd.DataFrame):
+            return self.transform_dataframe(sample)
+        return self.transform_series(sample)
 
 
 class TransformCompose(BaseTransform):
