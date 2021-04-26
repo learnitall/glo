@@ -540,9 +540,9 @@ class NutritionNormalizer(BaseTransform):
         self._columns = None
         self._units = None
 
-    def fit(
+    def fit(  # pylint: disable=arguments-differ
         self, ns_list: List[NutritionSet]
-    ) -> None:  # pylint: disable=arguments-differ
+    ) -> None:
         """
         Fit to list of given NutritionSets
 
