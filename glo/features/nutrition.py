@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Tools for working with and representing nutrition information."""
-from typing import Any, Callable, Iterable, Mapping, Union
+from typing import Any, Callable, Iterable, Mapping, Union, List
 import collections
 from pint.quantity import Quantity
 from pint.unit import Unit
 from glo.units import Q_, ureg, BaseUnitParser, get_quantity_from_str
+from glo.transform import BaseTransform
 
 
 _NFOperator = Callable[
@@ -204,6 +205,16 @@ class NutritionFact:
     def __truediv__(self, other):
         return NutritionFact(self.name, self.quantity / other)
 
+    def __eq__(self, other):
+        @_operator_overload_wrap
+        def _eq(self, other_q):
+            return self.quantity == other_q
+
+        try:
+            return _eq(self, other)
+        except ValueError:
+            return False
+
     @property
     def name(self):
         """Name of given nutrition fact this instance represents."""
@@ -347,6 +358,18 @@ class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
         ret_ns.update(self)
         ret_ns.update(other, merge_func=lambda a, b: a + b)
         return ret_ns
+
+    def __eq__(self, other: _NSCompatibleTypes) -> bool:
+        """Determine if two NutritionSets are equal."""
+
+        if set(self.keys()) != set(other.keys()):
+            return False
+
+        for key, value in self.items():
+            if other.get(key) != value:
+                return False
+
+        return True
 
     def as_dict(self) -> Mapping[str, Quantity]:
         """
@@ -496,3 +519,72 @@ class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
                     ) from exception
 
                 raise exception
+
+
+class NutritionNormalizer(BaseTransform):
+    """
+    Class for normalizing NutritionSets for ML models.
+
+    Works similarly to sklearn's label normalizer. Takes in an
+    array of NutritionSets and finds all of the unique NutritionFact
+    labels. Each NutritionSet is then transformed into a numpy array
+    with a length equal to the number of unique NutritionFact labels.
+    If a NutritionSet has a NutritionFact with a given label, its
+    value will be populated into the numpy array in the appropriate
+    column. Otherwise, a zero will be placed into the appropriate
+    column. All pint quantities are reduced using ``to_base_units``.
+    """
+
+    def __init__(self):
+        super().__init__(inverse_func=self._inverse)
+        self._columns = None
+        self._units = None
+
+    def fit(
+        self, ns_list: List[NutritionSet]
+    ) -> None:  # pylint: disable=arguments-differ
+        """
+        Fit to list of given NutritionSets
+
+        Parameters
+        ----------
+        ns_list: list of NutritionSet
+            List of NutritionSet instances to fit over.
+
+        Returns
+        -------
+        None
+        """
+
+        columns = set()
+        for nut_set in ns_list:
+            for key in nut_set.keys():
+                columns.add((key, nut_set[key].quantity.to_base_units().units))
+
+        self._columns = sorted(list(columns), key=lambda i: i[0])
+
+    def _inverse(self, ns_norm_list: List[List[float]]) -> List[NutritionSet]:
+        """Inverse method for transform inverse_func."""
+
+        result = []
+        for nut_list in ns_norm_list:
+            nut_dict = dict()
+            for i, (col, unit) in enumerate(self._columns):
+                if nut_list[i] != 0:
+                    nut_dict[col] = Q_(nut_list[i], units=unit)
+            result.append(NutritionSet.from_dict(nut_dict))
+
+        return result
+
+    def __call__(self, ns_list: List[NutritionSet]) -> List[List[float]]:
+        result = []
+        empty_nf = NutritionFact("empty", Q_(0))
+        for nut_set in ns_list:
+            result.append(
+                [
+                    nut_set.get(col, empty_nf).quantity.to_base_units().m
+                    for col, unit in self._columns
+                ]
+            )
+
+        return result

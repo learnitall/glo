@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import pytest
+import numpy as np
 from glo.units import Q_, ureg
-from glo.features.nutrition import NutritionFact, NutritionSet
+from glo.features.nutrition import (
+    NutritionFact,
+    NutritionSet,
+    NutritionNormalizer,
+)
 
 
 def test_create_basic_nutrition_fact_instance():
@@ -95,6 +100,27 @@ def test_nutrition_fact_name_is_read_only():
     nf = NutritionFact("test name")
     with pytest.raises(AttributeError):
         nf.name = "test"
+
+
+def test_can_show_two_nutrition_fact_are_equal():
+    """Test that equality statements between NutritionFacts works."""
+
+    nf1 = NutritionFact("sodium", Q_("10 milligrams"))
+    equals = [
+        NutritionFact("sodium", Q_("10 milligrams")),
+        Q_("10 milligrams"),
+        Q_("10 milligrams").to("grams"),
+    ]
+    not_equals = [
+        NutritionFact("sugar", Q_("10 milligrams")),
+        Q_("5 milligrams"),
+        10,
+    ]
+
+    for other in equals:
+        assert nf1 == other
+    for other in not_equals:
+        assert nf1 != other
 
 
 def test_create_basic_nutrition_set_instance():
@@ -248,3 +274,69 @@ def test_can_add_and_subtract_nutrition_set_instances():
         "protein": Q_(5, "grams"),
         "trans fat": Q_(-8, "grams"),
     }
+
+
+def test_can_determine_if_two_nutrition_set_instances_are_equal():
+    """Test thah we can determine if two NutritionSets are equal."""
+
+    ns_dict1 = {
+        "sodium": Q_(10, "milligrams"),
+        "fat": Q_(15, "grams"),
+        "protein": Q_(5, "grams"),
+    }
+    ns1 = NutritionSet.from_dict(ns_dict1)
+    ns_dict2 = {
+        "sodium": Q_(10, "milligrams").to("grams"),
+        "fat": Q_(15, "grams"),
+        "protein": Q_(5, "grams"),
+    }
+    ns2 = NutritionSet.from_dict(ns_dict2)
+    ns_dict3 = {
+        "sodium": Q_(5, "grams"),
+        "fat": Q_(15, "grams"),
+        "trans fat": Q_(8, "grams"),
+    }
+    ns3 = NutritionSet.from_dict(ns_dict3)
+
+    assert ns1 == ns2
+    assert ns1 != ns3
+
+
+def test_can_normalize_list_of_nutrition_set_with_normalizer():
+    """Test that we can transform list of NutritionSet with Normalizer."""
+
+    ns_dict1 = {
+        "sodium": Q_(10, "milligrams"),
+        "fat": Q_(15, "grams"),
+        "protein": Q_(5, "grams"),
+        "calories": Q_(200, "calories"),
+    }
+    ns_dict2 = {
+        "sodium": Q_(5, "grams"),
+        "fat": Q_(15, "grams"),
+        "trans fat": Q_(8, "grams"),
+        "calories": Q_(499, "calories"),
+    }
+    num_features = len(set(ns_dict1.keys()).union(set(ns_dict2.keys())))
+
+    ns1 = NutritionSet.from_dict(ns_dict1)
+    ns2 = NutritionSet.from_dict(ns_dict2)
+    data = [ns1, ns2]
+
+    normalizer = NutritionNormalizer()
+    normalizer.fit(data)
+    result = normalizer.transform(data)
+
+    inverse = normalizer.inverse_transform(result)
+    for i in range(len(data)):
+        assert inverse[i] == data[i]
+
+    assert np.array(result).shape == (2, num_features)
+    # resulting arrays sorted lexicographically
+    keys = ["calories", "fat", "protein", "sodium", "trans fat"]
+    assert list(result[0]) == [
+        ns_dict1.get(key, Q_(0)).to_base_units().m for key in keys
+    ]
+    assert list(result[1]) == [
+        ns_dict2.get(key, Q_(0)).to_base_units().m for key in keys
+    ]
