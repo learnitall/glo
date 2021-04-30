@@ -189,15 +189,17 @@ class ScrapyKingSoopersDataModule(pl.LightningDataModule):
         Saved ``ds_args`` parameter. Can be edited until ``setup``
         method is called. Any edits after this point will have
         no effect.
-    ks_full: ScrapyKingSoopersDataSet
+    ks_ds: ScrapyKingSoopersDataSet
         Initialized ``ScrapyKingSoopersDataSet``. Will be created
         within ``setup`` method, but before then will just be set
         to ``None``.
+    ks_filtered: Pandas DataFrame
+        DataFrame of filtered ks_ds dataset, ready for normalization
     ks_norm: Pandas DataFrame
-        DataFrame of normalized ks_full dataset. Will share the
+        DataFrame of normalized ks_ds dataset. Will share the
         same index as ks_full, but the same order as ks_norm_numpy.
     ks_norm_numpy: Numpy Array
-        Numpy array of normalized ks_full dataset, ready for training.
+        Numpy array of normalized ks_ds dataset, ready for training.
         Output of ``ks_norm.to_numpy()``
     filter: Pipeline
         Pipeline instance that will be used to filter ks dataset
@@ -233,6 +235,7 @@ class ScrapyKingSoopersDataModule(pl.LightningDataModule):
         else:
             self.ds_args = ds_args
 
+        self.ks_filtered = None
         self.ks_norm = None
         self.ks_norm_numpy = None
 

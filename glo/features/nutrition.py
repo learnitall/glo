@@ -672,9 +672,10 @@ class PandasNutritionNormalizer(PandasBaseTransform):
         result = series.copy(deep=True)
 
         if result.get("nutrition", False):
-            result["nutrition"] = np.array(self._nut_norm.transform(
-                [result["nutrition"]]
-            )[0], dtype=np.float64)
+            result["nutrition"] = np.array(
+                self._nut_norm.transform([result["nutrition"]])[0],
+                dtype=np.float64,
+            )
         return result
 
 
@@ -708,10 +709,13 @@ class PandasNutritionFilter(PandasBaseTransform):
     def transform_series(self, series: pd.Series) -> pd.Series:
         result = series.copy(deep=True)
 
-        new_ns = NutritionSet(*[
-            fn for fact, fn in result["nutrition"].items() if
-            fact in self.fact_names
-        ])
+        new_ns = NutritionSet(
+            *[
+                fn
+                for fact, fn in result["nutrition"].items()
+                if fact in self.fact_names
+            ]
+        )
 
         if len(new_ns.keys()) == 0:
             result["nutrition"] = np.nan
