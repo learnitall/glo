@@ -2,34 +2,33 @@
 # -*- coding: utf-8 -*-
 """Torch Lightning DataModule for KingSoopers data."""
 import os
-from typing import Callable, Union
-import warnings
+from typing import Optional, List
 import pandas as pd
-import numpy as np
+import pytorch_lightning as pl
 from sklearn.pipeline import make_pipeline
-from glo.transform import BaseTransform, PandasBaseTransfrom
 from glo.units import (
     ureg,
-    Q_,
-    Q_class,
-    simplified_div,
-    ASCIIUnitParser,
     UnitWithSpaceParser,
-    BaseUnitParser,
 )
-from glo.features.serving import get_num_servings
+from glo.transform import PandasFindMissing
+from glo.features.serving import PandasParseServing
 from glo.features.allergen import (
-    ASCIIAllergenParser,
-    BaseAllergyParser,
+    PandasParseAllergen,
+    PandasAllergenFilter,
 )
-from glo.features.nutrition import NutritionSet
-from .pandas import PandasDataset
+from glo.features.nutrition import (
+    PandasNutritionNormalizer,
+    PandasParseNutrition,
+    PandasNutritionFilter,
+)
+from glo.features.price import (
+    PandasSetPriceMethod,
+    PICKUP,
+)
+from glo.features.indicator import PandasIndicatorNormalizer
+from glo.data.pandas import PandasDataset
 
 
-PICKUP = "PICKUP"
-DELIVERY = "DELIVERY"
-SHIP = "SHIP"
-PRICE_METHODS = {PICKUP, DELIVERY, SHIP}
 COUNT_UNITS = {
     "can",
     "bottle",
@@ -84,310 +83,6 @@ ureg.define("@alias fluid_ounce = fl_oz")
 ureg.define("international_unit = [] = IU = number_of_international_units")
 ureg.define("retinol_activity_equivalent = [] = mcg_rae = retinol_equivalent")
 ureg.define("milliequivalent = [] = mEq = meq")
-
-
-def filter_nan_wrap(
-    func: Callable[
-        [BaseTransform, Union[pd.Series, float]], Union[pd.Series, float]
-    ]
-) -> Callable[
-    [BaseTransform, Union[pd.Series, float]], Union[pd.Series, float]
-]:
-    """
-    Wrapper for transforms to only call transform if input is ``np.nan``.
-
-    This funtion is meant to wrap the ``__call__`` method of
-    subclasses for ``BaseTransform``. It could very well be
-    rewritten as a metaclass, however, this option works too and may
-    be more useful in the future.
-
-    Parameters
-    ----------
-    func: callable
-        Given function to wrap
-
-    Returns
-    -------
-    callable
-        If given sample is ``np.nan``, then will return sample.
-        Otherwise, call the wrapped function.
-    """
-
-    def wrapped(
-        self: BaseTransform, sample: Union[pd.Series, float]
-    ) -> Union[pd.Series, float]:
-        if sample.isna().values.all(axis=0):
-            return sample
-        return func(self, sample)
-
-    return wrapped
-
-
-class TransformServing(PandasBaseTransfrom):
-    """
-    Add ``servings`` column to the dataset.
-
-    Use the ``weight`` and ``servings`` columns to parse the number
-    of servings per food item and create a new column named
-    ``servings``. Delete the ``weight`` and ``servings`` column after.
-
-    Parameters
-    ----------
-    parser: BaseUnitParser
-        Set ``parser`` attribute. Defaults to
-        ``glo.features.serving.ASCIIUnitParser()``.
-
-    Attributes
-    ----------
-    parser: BaseUnitParser
-        Passed to ``unit_parser`` of
-        ``glo.features.serving.get_num_servings``.
-    """
-
-    def __init__(self, parser: BaseUnitParser = ASCIIUnitParser(), **kwargs):
-        self.parser = parser
-        super().__init__(**kwargs)
-
-    @staticmethod
-    def div_func(  # pylint: disable=invalid-name
-        q1: Q_class, q2: Q_class
-    ) -> float:
-        """
-        Return float of simplified division of quantities.
-
-        This essentially wraps ``glo.units.simplified_div`` by
-        performing some extra magic requied by the King Soopers
-        dataset. For instance, sometimes the King Soopers dataset
-        will incorrectly use "oz" instead of "floz", and this
-        function will replace "oz" to "floz" when the other unit
-        is a liquid volume.
-
-        Parameters
-        ----------
-        q1: pint.Quantity instance
-        q2: pint.Quantity instance
-
-        Returns
-        -------
-        float
-
-        Raises
-        ------
-        TypeError
-            If the units of the given quantities cannot be simplified to a
-            dimensionless value
-
-        See Also
-        --------
-        glo.units.simplified_div
-        """
-
-        if q1.units == ureg.ounce and q2.units.is_compatible_with(
-            ureg.fluid_ounce
-        ):
-            q1 = Q_(q1.magnitude, ureg.fluid_ounce)
-        elif q2.units == ureg.ounce and q1.units.is_compatible_with(
-            ureg.fluid_ounce
-        ):
-            q2 = Q_(q2.magnitude, ureg.fluid_ounce)
-
-        return simplified_div(q1, q2)
-
-    @filter_nan_wrap
-    def transform_series(self, series: pd.Series) -> Union[pd.Series, float]:
-        result = series.copy(deep=True)
-
-        weight = series["weight"]
-        serving_size = series["serving"]
-        try:
-            servings = get_num_servings(
-                weight,
-                serving_size,
-                div_func=self.div_func,
-                unit_parser=self.parser,
-            )
-        except ValueError as exception:
-            warnings.warn(exception.args[0], RuntimeWarning)
-            return np.nan
-
-        result["servings"] = servings
-        return result
-
-
-class TransformAllergen(PandasBaseTransfrom):
-    """
-    Set ``allergens`` column of dataset to parsed allergens.
-
-    Parameters
-    ----------
-    parser: BaseAllergyParser
-        Set ``parser`` attribute. Defaults to
-        ``glo.features.allergen.ASCIIAllergenParser()``
-
-    Attributes
-    ----------
-    parser: BaseAllergyParser
-        Allergen parser that will be used.
-    """
-
-    def __init__(
-        self,
-        parser: BaseAllergyParser = ASCIIAllergenParser(),
-        **kwargs,
-    ):
-        self.parser = parser
-        super().__init__(**kwargs)
-
-    @filter_nan_wrap
-    def transform_series(self, series: pd.Series) -> pd.Series:
-        result = series.copy(deep=True)
-        if result.get("allergens", False):
-            result["allergens"] = self.parser.find_allergen_strs(
-                series["allergens"]
-            )
-        return result
-
-
-class TransformNutrition(PandasBaseTransfrom):
-    """
-    Set ``nutrition`` column of dataset to parsed nutrition info.
-
-    For KingSoopers, this involves making some replacements in the
-    unit strings and parsing the information into a NutritionSet.
-
-    Parameters
-    ----------
-    parser: BaseUnitParser
-        Set ``parser`` attribute. Defaults to
-        ``glo.features.serving.ASCIIUnitParser()``.
-
-    Attributes
-    ----------
-    ALIASES: mapping of str to str
-        Maps substrings that could be found in the unit strings
-        of the nutrition dict and their replacements.
-    parser: BaseUnitParser
-        Passed to ``unit_parser`` of
-        ``glo.features.serving.get_num_servings``.
-
-    See Also
-    --------
-    glo.features.nutrition.NutritionSet
-    """
-
-    def __init__(self, parser: BaseUnitParser = ASCIIUnitParser(), **kwargs):
-        self.parser = parser
-        super().__init__(**kwargs)
-
-    @filter_nan_wrap
-    def transform_series(self, series: pd.Series) -> pd.Series:
-        result = series.copy(deep=True)
-        try:
-            result["nutrition"] = NutritionSet.from_dict(
-                result["nutrition"], parser=self.parser
-            )
-        except KeyError:
-            warnings.warn(
-                f"Unable to create NutritionSet: {result['nutrition']}",
-                RuntimeWarning,
-            )
-        return result
-
-
-class TransformPrice(PandasBaseTransfrom):
-    """
-    Set ``price`` column of dataset to price of picked price method.
-
-    King Soopers' website presents multiple methods for obtaining
-    their products, with each method having a potentially different
-    price. The scrapy spider will pull each of these and create a
-    dictionary which maps the method to the associated price. This
-    transform lets us pick which price to use.
-
-    If the given method cannot be found for the item, then ``np.nan``
-    is used instead.
-
-    Parameters
-    ----------
-    method: str
-        The method whose price should be set in the ``price`` column.
-        Should be one of the strings in ``PRICE_METHODS``. Defaults
-        to ``PICKUP``.
-
-    Attributes
-    ----------
-    method: str, optional
-        Set to the given method parameter.
-
-    Raises
-    ------
-    ValueError
-        If the given method is not in ``PRICE_METHODS``
-    """
-
-    def __init__(self, method: str = PICKUP, **kwargs):
-        if method not in PRICE_METHODS:
-            raise ValueError(
-                f"Expected method to be one of {list(PRICE_METHODS)}, "
-                f"instead got: {method}"
-            )
-
-        self.method = method
-        super().__init__(**kwargs)
-
-    @filter_nan_wrap
-    def transform_series(self, series: pd.Series) -> pd.Series:
-        result = series.copy(deep=True)
-        result["price"] = series["price"].get(self.method, np.nan)
-        return result
-
-
-class TransformMissing(PandasBaseTransfrom):
-    """
-    Set each column to ``np.nan`` if missing critical information.
-
-    Parameters
-    ----------
-    expected_columns: dict
-        Expected column names for keys, their expected types as
-        values. If the column name is missing, or if one of the
-        expected types is incorrect, then return ``np.nan``.
-    fill_nan: bool
-        If True, then if any of the expected columns are ``np.nan``, then
-        transform the entire series to ``np.nan``.
-
-    Attributes
-    ----------
-    expected_columns: dict
-        Stores the given parameter ``expected_columns``.
-    fill_nan: dict
-        Stores the given parameter ``fill_nan``.
-    missing_count: dict
-        Keys are the columns from expected_columns, values are the
-        number of columns that were deemed invalid.
-    """
-
-    def __init__(
-        self, expected_columns: dict, fill_nan: bool = True, **kwargs
-    ):
-        self.expected_columns = expected_columns
-        self.fill_nan = fill_nan
-        self.missing_count = dict()
-        super().__init__(**kwargs)
-
-    @filter_nan_wrap
-    def transform_series(self, series: pd.Series) -> Union[pd.Series, float]:
-        for key, value in self.expected_columns.items():
-            samp_val = series.get(key, None)
-            if (
-                samp_val is None
-                or (self.fill_nan and samp_val is np.nan)
-                or not isinstance(samp_val, value)
-            ):
-                self.missing_count[key] = self.missing_count.get(key, 0) + 1
-                return np.nan
-
-        return series
 
 
 class ScrapyKingSoopersDataSet(PandasDataset):
@@ -445,11 +140,11 @@ class ScrapyKingSoopersDataSet(PandasDataset):
     ):
         self.file_path = os.path.abspath(file_path)
         self.transform = make_pipeline(
-            TransformMissing(self.EXPECTED_COLUMNS, True),
-            TransformNutrition(UnitWithSpaceParser()),
-            TransformAllergen(),
-            TransformServing(UnitWithSpaceParser()),
-            TransformPrice(method=price_method),
+            PandasFindMissing(self.EXPECTED_COLUMNS, True),
+            PandasParseNutrition(UnitWithSpaceParser()),
+            PandasParseAllergen(),
+            PandasParseServing(UnitWithSpaceParser()),
+            PandasSetPriceMethod(method=price_method),
         )
 
         super().__init__(
@@ -458,5 +153,113 @@ class ScrapyKingSoopersDataSet(PandasDataset):
             )
         )
 
+        self.frame = self.frame.astype(object)
         if not is_clean:
-            self.frame = self.transform.fit_transform(self.frame).dropna()
+            self.frame = self.transform.transform(self.frame)
+            self.frame.dropna(axis=0, how="any", inplace=True)
+            self.frame.reset_index(drop=True, inplace=True)
+
+
+class ScrapyKingSoopersDataModule(pl.LightningDataModule):
+    """
+    Pytorch Lightning Data Module for working with Scrapy KS data.
+
+    Parameters
+    ----------
+    filter_allergens: list of str, optional
+        Allergens to filter out of the dataset. If None is given,
+        then no filtering will occur.
+    filter_nutrition: list of str, optional
+        Nutrition facts to grab from the dataset. If None is
+        given, then no filtering will occur.
+    columns_drop: list of str, optional
+        After transforming the dataset, drop the columns given. If
+        None, then no columns are dropped.
+    ds: ScrapyKingSoopersDataSet, optional
+        If given, then will copy the given dataset and use it for
+        creating the instance of the datamodule.
+    ds_args: dict, optional
+        Keyword arguments passed to ``ScrapyKingSoopersDataSet``.
+
+    Attributes
+    ----------
+    columns_drop: list of str
+        Saved argument given above.
+    ds_args: dict
+        Saved ``ds_args`` parameter. Can be edited until ``setup``
+        method is called. Any edits after this point will have
+        no effect.
+    ks_full: ScrapyKingSoopersDataSet
+        Initialized ``ScrapyKingSoopersDataSet``. Will be created
+        within ``setup`` method, but before then will just be set
+        to ``None``.
+    ks_norm: Pandas DataFrame
+        DataFrame of normalized ks_full dataset. Will share the
+        same index as ks_full, but the same order as ks_norm_numpy.
+    ks_norm_numpy: Numpy Array
+        Numpy array of normalized ks_full dataset, ready for training.
+        Output of ``ks_norm.to_numpy()``
+    filter: Pipeline
+        Pipeline instance that will be used to filter ks dataset
+        for normalization.
+    transform: Pipeline
+        Pipeline instance that will be used to normalize ks
+        dataset for training.
+
+    See Also
+    --------
+    glo.data.kingsoopers.ScrapyKingSoopersDataSet
+    """
+
+    def __init__(
+        self,
+        filter_allergens: List[str] = None,
+        filter_nutrition: List[str] = None,
+        columns_drop: List[str] = None,
+        ds: ScrapyKingSoopersDataSet = None,
+        ds_args: dict = None,
+    ):
+        super().__init__()
+
+        self.colums_drop = columns_drop
+
+        if ds is not None:
+            self.ks_ds = ds
+        else:
+            self.ks_ds = None
+
+        if ds_args is None:
+            self.ds_args = dict()
+        else:
+            self.ds_args = ds_args
+
+        self.ks_norm = None
+        self.ks_norm_numpy = None
+
+        filters = []
+        if filter_allergens is not None:
+            filters.append(PandasAllergenFilter(filter_allergens))
+        if filter_nutrition is not None:
+            filters.append(PandasNutritionFilter(filter_nutrition))
+        self.filter = make_pipeline(*filters)
+
+        self.transform = make_pipeline(
+            PandasNutritionNormalizer(), PandasIndicatorNormalizer()
+        )
+
+    def setup(self, stage: Optional[str] = None):
+        """Load and clean Scrapy Data and get splits."""
+
+        if self.ks_ds is None:
+            self.ks_ds = ScrapyKingSoopersDataSet(**self.ds_args)
+        if self.ks_norm is None:
+            self.ks_filtered = self.filter.fit_transform(self.ks_ds.frame)
+            self.ks_filtered.dropna(axis=0, how="any", inplace=True)
+
+            self.ks_norm = self.transform.fit_transform(self.ks_filtered)
+            if self.colums_drop is not None:
+                for col in self.colums_drop:
+                    del self.ks_norm[col]
+
+            self.ks_norm.dropna(axis=0, how="any", inplace=True)
+            self.ks_norm_numpy = self.ks_norm.to_numpy()

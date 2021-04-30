@@ -3,10 +3,20 @@
 """Tools for working with and representing nutrition information."""
 from typing import Any, Callable, Iterable, Mapping, Union, List
 import collections
+import warnings
+
+import numpy as np
+import pandas as pd
 from pint.quantity import Quantity
 from pint.unit import Unit
-from glo.units import Q_, ureg, BaseUnitParser, get_quantity_from_str
-from glo.transform import BaseTransform
+from glo.units import (
+    Q_,
+    ureg,
+    BaseUnitParser,
+    ASCIIUnitParser,
+    get_quantity_from_str,
+)
+from glo.transform import BaseTransform, PandasBaseTransform, filter_nan_wrap
 
 
 _NFOperator = Callable[
@@ -362,6 +372,9 @@ class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
     def __eq__(self, other: _NSCompatibleTypes) -> bool:
         """Determine if two NutritionSets are equal."""
 
+        if not isinstance(other, NutritionSet):
+            return False
+
         if set(self.keys()) != set(other.keys()):
             return False
 
@@ -413,7 +426,7 @@ class NutritionSet(collections.UserDict):  # pylint: disable=too-many-ancestors
             ]
         )
 
-    def update(  # pylint: disable=arguments-differ
+    def update(
         self,
         other: _NSCompatibleTypes,
         merge_func: Union[
@@ -536,13 +549,11 @@ class NutritionNormalizer(BaseTransform):
     """
 
     def __init__(self):
-        super().__init__(inverse_func=self._inverse)
+        super().__init__()
         self._columns = None
         self._units = None
 
-    def fit(  # pylint: disable=arguments-differ
-        self, ns_list: List[NutritionSet]
-    ) -> None:
+    def fit(self, ns_list: List[NutritionSet]) -> None:
         """
         Fit to list of given NutritionSets
 
@@ -564,8 +575,6 @@ class NutritionNormalizer(BaseTransform):
         self._columns = sorted(list(columns), key=lambda i: i[0])
 
     def _inverse(self, ns_norm_list: List[List[float]]) -> List[NutritionSet]:
-        """Inverse method for transform inverse_func."""
-
         result = []
         for nut_list in ns_norm_list:
             nut_dict = dict()
@@ -586,5 +595,127 @@ class NutritionNormalizer(BaseTransform):
                     for col, unit in self._columns
                 ]
             )
+
+        return result
+
+
+class PandasParseNutrition(PandasBaseTransform):
+    """
+    Set ``nutrition`` column of dataset to parsed nutrition info.
+
+    Parameters
+    ----------
+    parser: BaseUnitParser
+        Set ``parser`` attribute. Defaults to
+        ``glo.features.serving.ASCIIUnitParser()``.
+
+    Attributes
+    ----------
+    parser: BaseUnitParser
+        Passed to ``unit_parser`` of
+        ``glo.features.serving.get_num_servings``.
+
+    See Also
+    --------
+    glo.features.nutrition.NutritionSet
+    """
+
+    def __init__(self, parser: BaseUnitParser = ASCIIUnitParser(), **kwargs):
+        self.parser = parser
+        super().__init__(**kwargs)
+
+    @filter_nan_wrap
+    def transform_series(self, series: pd.Series) -> pd.Series:
+        result = series.copy(deep=True)
+        try:
+            result["nutrition"] = NutritionSet.from_dict(
+                result["nutrition"], parser=self.parser
+            )
+        except KeyError:
+            warnings.warn(
+                f"Unable to create NutritionSet: {result['nutrition']}",
+                RuntimeWarning,
+            )
+        return result
+
+
+class PandasNutritionNormalizer(PandasBaseTransform):
+    """
+    Extension of the NutritionNormalizer for pandas Dataframes.
+
+    Expects the ``nutrition`` column of the given dataframe to
+    be a single ``NutritionSet`` instance.
+
+    See Also
+    --------
+    NutritionNormalizer
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._nut_norm = NutritionNormalizer()
+
+    def fit(self, dataframe: pd.DataFrame) -> "PandasNutritionNormalizer":
+        """
+        Fit to given dataframe.
+
+        Parameters
+        ----------
+        dataframe: pandas dataframe
+            pandas dataframe to fit to
+        """
+
+        self._nut_norm.fit(list(dataframe["nutrition"]))
+        return self
+
+    def transform_series(self, series: pd.Series) -> pd.Series:
+        result = series.copy(deep=True)
+
+        if result.get("nutrition", False):
+            result["nutrition"] = np.array(self._nut_norm.transform(
+                [result["nutrition"]]
+            )[0], dtype=np.float64)
+        return result
+
+
+class PandasNutritionFilter(PandasBaseTransform):
+    """
+    Extract specific items from Nutrtion Information.
+
+    Arguments
+    ---------
+    fact_names: list of str
+        List of Nutrition Fact name strings to pull from NutritionSet.
+        All other NutritionFacts will be dropped. If a NutritionSet
+        doesn't contain one of the nutrition fact names given, then
+        it will be set to ``np.nan``.
+
+    Parameters
+    ----------
+    fact_names: list of str
+        Saved argument.
+
+    See Also
+    --------
+    glo.features.nutrition.NutritionSet
+    """
+
+    def __init__(self, fact_names: List[str], **kwargs):
+        self.fact_names = fact_names
+        super().__init__(**kwargs)
+
+    @filter_nan_wrap
+    def transform_series(self, series: pd.Series) -> pd.Series:
+        result = series.copy(deep=True)
+
+        new_ns = NutritionSet(*[
+            fn for fact, fn in result["nutrition"].items() if
+            fact in self.fact_names
+        ])
+
+        if len(new_ns.keys()) == 0:
+            result["nutrition"] = np.nan
+        else:
+            result["nutrition"] = new_ns
 
         return result

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Classes for working with Transforms compatible with pytorch."""
-from typing import List, Union
+from typing import Callable, List, Union
 import functools
+import numpy as np
 import pandas as pd
 from sklearn.preprocessing import FunctionTransformer
 
@@ -13,17 +14,32 @@ class BaseTransform(FunctionTransformer):
 
     To use, override the ``__call__`` method. This will be passed
     to the FunctionTransformer on initialization.
+
+    Please note: the reason why ``fit`` on a ``BaseTransform``
+    is set to an empty function that just returns ``None``, is that
+    the defaunt ``fit`` method inherited from sklearn's
+    ``FunctionTransformer``that doesn't might raise a TypeError due to
+    numpy dtype validation. Since a lot of the transforms in glo are
+    used for data cleaning, the fit has been overridden for convinence
+    sake.
     """
 
     def __init__(self, **kwargs):
         kwargs["func"] = self.__call__
+        kwargs["inverse_func"] = self._inverse
         super().__init__(**kwargs)
+
+    def fit(self, sample):  # pylint: disable=unused-argument
+        return self
+
+    def _inverse(self, sample):  # pylint: disable=no-self-use
+        return sample
 
     def __call__(self, sample):
         return sample
 
 
-class PandasBaseTransfrom(BaseTransform):
+class PandasBaseTransform(BaseTransform):
     """
     Base class for building transforms on Pandas dataframes.
 
@@ -117,3 +133,145 @@ class TransformCompose(BaseTransform):
         return functools.reduce(
             lambda output, t_func: t_func(output), self.transforms, sample
         )
+
+
+class DumbTransformCompose:
+    """
+    "Dumb" implementation of a ``TransformCompose``.
+
+    What makes this class "dumb" is that is doesn't inherit from
+    any class from sklearn's library and only implements a subset
+    of the transform API. The reasoning behind this is dealing
+    with numpy types.
+
+    Certain transforms used to clean datasets require objects, but
+    sklearn's transforms and pipelines really don't like custom
+    Python objects in their input that can't easily be cast to one
+    of the numpy dtypes. This class doesn't care about types
+    and will just do its job without any sort of validation.
+
+    Parameters
+    ----------
+    transforms: list of BaseTransforms
+        List of transforms to chain together. Sets ``transforms``
+        attribute.
+
+    Attributes
+    ----------
+    tranforms: list of BaseTransforms.
+
+    Examples
+    --------
+    >>> from glo.transform import DumbTransformCompose
+    >>> add_five = lambda a: a + 5
+    >>> mult_five = lambda a: a * 5
+    >>> tc = DumbTransformCompose([add_five, mult_five, add_five])
+    >>> tc(5)
+    55
+    >>> add_five(mult_five(add_five(5)))
+    55
+    """
+
+    def __init__(self, transforms: List[BaseTransform]):
+        self.transforms = transforms
+
+    def fit(self, sample) -> None:
+        """Fit each transform to the given sample."""
+        for transform in self.transforms:
+            transform.fit(sample)
+
+    def transform(self, sample):
+        """Transform the given sample and return the result."""
+        return functools.reduce(
+            lambda output, t_func: t_func(output), self.transforms, sample
+        )
+
+    def fit_transform(self, sample):
+        """Call fit on the given sample, then transform."""
+        self.fit(sample)
+        return self.transform(sample)
+
+
+def filter_nan_wrap(
+    func: Callable[
+        [BaseTransform, Union[pd.Series, float]], Union[pd.Series, float]
+    ]
+) -> Callable[
+    [BaseTransform, Union[pd.Series, float]], Union[pd.Series, float]
+]:
+    """
+    Wrapper for transforms to only call transform if input is ``np.nan``.
+
+    This funtion is meant to wrap the ``__call__`` method of
+    subclasses for ``BaseTransform``. It could very well be
+    rewritten as a metaclass, however, this option works too and may
+    be more useful in the future.
+
+    Parameters
+    ----------
+    func: callable
+        Given function to wrap
+
+    Returns
+    -------
+    callable
+        If given sample is ``np.nan``, then will return sample.
+        Otherwise, call the wrapped function.
+    """
+
+    def wrapped(
+        self: BaseTransform, sample: Union[pd.Series, float]
+    ) -> Union[pd.Series, float]:
+        if sample.isna().values.all(axis=0):
+            return sample
+        return func(self, sample)
+
+    return wrapped
+
+
+class PandasFindMissing(PandasBaseTransform):
+    """
+    Set each column to ``np.nan`` if missing critical information.
+
+    Parameters
+    ----------
+    expected_columns: dict
+        Expected column names for keys, their expected types as
+        values. If the column name is missing, or if one of the
+        expected types is incorrect, then return ``np.nan``.
+    fill_nan: bool
+        If True, then if any of the expected columns are ``np.nan``, then
+        transform the entire series to ``np.nan``.
+
+    Attributes
+    ----------
+    expected_columns: dict
+        Stores the given parameter ``expected_columns``.
+    fill_nan: dict
+        Stores the given parameter ``fill_nan``.
+    missing_count: dict
+        Keys are the columns from expected_columns, values are the
+        number of columns that were deemed invalid.
+    """
+
+    def __init__(
+        self, expected_columns: dict, fill_nan: bool = True, **kwargs
+    ):
+        self.expected_columns = expected_columns
+        self.fill_nan = fill_nan
+        self.missing_count = dict()
+        super().__init__(**kwargs)
+
+    @filter_nan_wrap
+    def transform_series(self, series: pd.Series) -> Union[pd.Series, float]:
+        for key, value in self.expected_columns.items():
+            samp_val = series.get(key, None)
+            if (
+                samp_val is None
+                or (self.fill_nan and samp_val is np.nan)
+                or not isinstance(samp_val, value)
+            ):
+                self.missing_count[key] = self.missing_count.get(key, 0) + 1
+                return np.nan
+
+        return series

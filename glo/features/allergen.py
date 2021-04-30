@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Tools for working with and representing allergy information."""
-from typing import NamedTuple, Set, Union
+from typing import NamedTuple, Set, Union, List
 from abc import ABC, abstractmethod
+import numpy as np
+import pandas as pd
 from glo.helpers import (
     contains_substring,
     prep_ascii_str,
     remove_substrings,
     split_in_list,
 )
+from glo.transform import PandasBaseTransform, filter_nan_wrap
 
 
 DOA = "declaration obligatory allergens"
@@ -210,3 +213,77 @@ class ASCIIAllergenParser(BaseAllergyParser):
             return None
 
         return allergen_list
+
+
+class PandasParseAllergen(PandasBaseTransform):
+    """
+    Set ``allergens`` column of dataset to parsed allergens.
+
+    Parameters
+    ----------
+    parser: BaseAllergyParser
+        Set ``parser`` attribute. Defaults to
+        ``glo.features.allergen.ASCIIAllergenParser()``
+
+    Attributes
+    ----------
+    parser: BaseAllergyParser
+        Allergen parser that will be used.
+    """
+
+    def __init__(
+        self,
+        parser: BaseAllergyParser = ASCIIAllergenParser(),
+        **kwargs,
+    ):
+        self.parser = parser
+        super().__init__(**kwargs)
+
+    @filter_nan_wrap
+    def transform_series(self, series: pd.Series) -> pd.Series:
+        result = series.copy(deep=True)
+        if result.get("allergens", False):
+            result["allergens"] = self.parser.find_allergen_strs(
+                series["allergens"]
+            )
+        return result
+
+
+class PandasAllergenFilter(PandasBaseTransform):
+    """
+    Filter ``allergens`` column of dataset.
+
+    Takes in a list of allergens as strings and if a row in the
+    dataset contains one of the given allergens, will set the row
+    to ``np.nan``.
+
+    Parameters
+    ----------
+    allergens: list or set of str
+        List or set of allergens to look for.
+
+    Attributes
+    ----------
+    allergens: set of str
+        Saved allergens parameter, but as a set.
+    """
+
+    def __init__(self, allergens: Union[List[str], Set[str]], **kwargs):
+        super().__init__(**kwargs)
+        if isinstance(allergens, set):
+            self.allergens = allergens
+        else:
+            self.allergens = set(allergens)
+
+    @filter_nan_wrap
+    def transform_series(self, series: pd.Series) -> pd.Series:
+        result = series.copy(deep=True)
+        if result.get("allergens", False):
+            has_allergens = len(
+                self.allergens.intersection(result.get("allergens").contains)
+            )
+
+            if has_allergens > 0:
+                result["allergens"] = np.nan
+
+        return result
