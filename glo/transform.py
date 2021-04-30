@@ -135,63 +135,6 @@ class TransformCompose(BaseTransform):
         )
 
 
-class DumbTransformCompose:
-    """
-    "Dumb" implementation of a ``TransformCompose``.
-
-    What makes this class "dumb" is that is doesn't inherit from
-    any class from sklearn's library and only implements a subset
-    of the transform API. The reasoning behind this is dealing
-    with numpy types.
-
-    Certain transforms used to clean datasets require objects, but
-    sklearn's transforms and pipelines really don't like custom
-    Python objects in their input that can't easily be cast to one
-    of the numpy dtypes. This class doesn't care about types
-    and will just do its job without any sort of validation.
-
-    Parameters
-    ----------
-    transforms: list of BaseTransforms
-        List of transforms to chain together. Sets ``transforms``
-        attribute.
-
-    Attributes
-    ----------
-    tranforms: list of BaseTransforms.
-
-    Examples
-    --------
-    >>> from glo.transform import DumbTransformCompose
-    >>> add_five = lambda a: a + 5
-    >>> mult_five = lambda a: a * 5
-    >>> tc = DumbTransformCompose([add_five, mult_five, add_five])
-    >>> tc(5)
-    55
-    >>> add_five(mult_five(add_five(5)))
-    55
-    """
-
-    def __init__(self, transforms: List[BaseTransform]):
-        self.transforms = transforms
-
-    def fit(self, sample) -> None:
-        """Fit each transform to the given sample."""
-        for transform in self.transforms:
-            transform.fit(sample)
-
-    def transform(self, sample):
-        """Transform the given sample and return the result."""
-        return functools.reduce(
-            lambda output, t_func: t_func(output), self.transforms, sample
-        )
-
-    def fit_transform(self, sample):
-        """Call fit on the given sample, then transform."""
-        self.fit(sample)
-        return self.transform(sample)
-
-
 def filter_nan_wrap(
     func: Callable[
         [BaseTransform, Union[pd.Series, float]], Union[pd.Series, float]
