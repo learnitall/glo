@@ -5,6 +5,7 @@ import os
 from typing import Optional, List
 import pandas as pd
 import pytorch_lightning as pl
+from torch.utils.data import DataLoader
 from sklearn.pipeline import make_pipeline
 from glo.units import (
     ureg,
@@ -164,6 +165,9 @@ class ScrapyKingSoopersDataModule(pl.LightningDataModule):
     """
     Pytorch Lightning Data Module for working with Scrapy KS data.
 
+    The splits and batch-sizes are not implemented here. Subclass
+    and set them based on the model.
+
     Parameters
     ----------
     filter_allergens: list of str, optional
@@ -244,25 +248,46 @@ class ScrapyKingSoopersDataModule(pl.LightningDataModule):
             filters.append(PandasAllergenFilter(filter_allergens))
         if filter_nutrition is not None:
             filters.append(PandasNutritionFilter(filter_nutrition))
-        self.filter = make_pipeline(*filters)
+        if len(filters) > 0:
+            self.filter = make_pipeline(*filters)
+        else:
+            self.filter = None
 
         self.transform = make_pipeline(
             PandasNutritionNormalizer(), PandasIndicatorNormalizer()
         )
 
-    def setup(self, stage: Optional[str] = None):
-        """Load and clean Scrapy Data and get splits."""
+    def prepare_data(self):
+        """Create ``ks_ds``."""
 
         if self.ks_ds is None:
             self.ks_ds = ScrapyKingSoopersDataSet(**self.ds_args)
-        if self.ks_norm is None:
+
+    def setup(self, stage: Optional[str] = None):
+        """Clean Scrapy Data and get splits."""
+
+        if self.ks_ds is None:
+            self.ks_ds = ScrapyKingSoopersDataSet(**self.ds_args)
+        if self.ks_filtered is None and self.filter is not None:
             self.ks_filtered = self.filter.fit_transform(self.ks_ds.frame)
             self.ks_filtered.dropna(axis=0, how="any", inplace=True)
-
-            self.ks_norm = self.transform.fit_transform(self.ks_filtered)
+        if self.ks_norm is None:
+            self.ks_norm = self.transform.fit_transform(
+                self.ks_filtered if self.filter is not None else
+                self.ks_ds.frame
+            )
             if self.colums_drop is not None:
                 for col in self.colums_drop:
                     del self.ks_norm[col]
 
             self.ks_norm.dropna(axis=0, how="any", inplace=True)
             self.ks_norm_numpy = self.ks_norm.to_numpy()
+
+    def train_dataloader(self):
+        return self.ks_norm_numpy
+
+    def test_dataloader(self):
+        return self.ks_norm_numpy
+
+    def val_dataloader(self):
+        return self.ks_norm_numpy
