@@ -19,6 +19,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
 import pytorch_lightning as pl
@@ -31,7 +32,7 @@ from glo.data.kingsoopers import ScrapyKingSoopersDataModule
 
 
 Transition = namedtuple(
-    "Transition", ("state", "action", "next_state", "reward")
+    "Transition", ("state", "action", "reward", "done", "new_state")
 )
 
 
@@ -57,7 +58,10 @@ class Environment:
         self.reset()
 
     def reset(self):
-        self.state = np.zeros((2, self.gc_size), dtype=np.float64)
+        self.state = (
+            np.zeros(self.gc_size, dtype=np.float64),
+            np.zeros((self.gc_size, len(self.items[0])), dtype=np.float64)
+        )
 
     @staticmethod
     def is_done(prev_reward, next_reward, tol, max_steps, steps):
@@ -69,6 +73,7 @@ class Environment:
     def step(self, action: int):
         """Get next state"""
 
+        action = int(action)
         # map action index to state index
         # 0 and 1 -> 0
         # 2 and 3 -> 1
@@ -81,14 +86,18 @@ class Environment:
         else:
             direction = 1
 
-        max_items = len(self.items) + 1
+        max_items = len(self.items)
         prev_index = self.state[0][action_index]
-        new_index = (prev_index + direction) % (max_items + 1)
+        new_index = int((prev_index + direction))
 
-        self.state[0][action_index] = new_index
-        if new_index == max_items:
+        if new_index == max_items or new_index == -1:
+            self.state[0][action_index] = max_items
             self.state[1][action_index] = np.zeros(self.items[0].shape)
+        elif new_index == max_items + 1 or new_index == 0:
+            self.state[0][action_index] = 0
+            self.state[1][action_index] = self.items[0]
         else:
+            self.state[0][action_index] = new_index
             self.state[1][action_index] = self.items[new_index]
 
 
@@ -139,7 +148,7 @@ class ReplayMemory:
 
         self.memory.append(Transition(*args))
 
-    def sample(self, bach_size: int):
+    def sample(self, batch_size: int):
         """
         Return a random sample of size ``batch_size``
 
@@ -149,7 +158,20 @@ class ReplayMemory:
             Number of random samples to return.
         """
 
-        return random.sample(self.memory, bach_size)
+        states = []
+        actions = []
+        reward = []
+        done = []
+        new_state = []
+
+        for samp in random.sample(self.memory, batch_size):
+            states.append(samp[0].flatten().astype(np.float32))
+            actions.append(samp[1])
+            reward.append(samp[2].astype(np.float32))
+            done.append(samp[3])
+            new_state.append(samp[4].flatten().astype(np.float32))
+
+        return states, actions, reward, done, new_state
 
 
 class DQN(nn.Module):
@@ -180,7 +202,7 @@ class DQN(nn.Module):
     """
 
     def __init__(
-        self, n_features: int, n_hidden: int, n_conn: int, n_actions: int
+        self, n_features: int, n_hidden: int, n_conn: int, n_actions: int,
     ):
         super().__init__()
 
@@ -258,8 +280,6 @@ class DQModel(pl.LightningModule):
         with the train network
     batches_per_epoch: int
         Number of batches per epoch
-    n_steps: int
-        Size of n step look ahead
     min_episode_reward: int
         The minimum score that can be achieved in an episode. Used
         for filling the avg buffer before training begins
@@ -293,7 +313,6 @@ class DQModel(pl.LightningModule):
         eps_last_frame: int = 150000,
         sync_rate: int = 1000,
         batches_per_epoch: int = 1000,
-        n_steps: int = 1,
         min_episode_reward: int = 0,
         avg_reward_len: int = 100,
         warm_start_size: int = 1000,
@@ -301,6 +320,30 @@ class DQModel(pl.LightningModule):
         max_steps: int = 200000
     ):
         super().__init__()
+
+        # Hyperparameters
+        self.min_episode_reward = min_episode_reward
+        self.eps_start = eps_start
+        self.eps_end = eps_end
+        self.eps_last_frame = eps_last_frame
+        self.tol = tol
+        self.sync_rate = sync_rate
+        self.gamma = gamma
+        self.lr = learning_rate
+        self.batch_size = batch_size
+        self.memory_size = memory_size
+        self.warm_start_size = warm_start_size
+        self.batches_per_epoch = batches_per_epoch
+        self.max_steps = max_steps
+        self.save_hyperparameters()
+
+        # Environment
+        self.env = Environment(dm, gc_size)
+        self.test_env = Environment(dm, gc_size)
+        self.state = self.env.state[0]
+        self.reward_func = reward_func
+        self.n_actions = gc_size * 2
+        self.epsilon = self.eps_start
 
         # Model attributes
         self.memory = ReplayMemory(capacity=memory_size)
@@ -318,31 +361,6 @@ class DQModel(pl.LightningModule):
             n_hidden=n_hidden,
             n_actions=self.n_actions
         )
-
-        # Hyperparameters
-        self.min_episode_reward = min_episode_reward
-        self.eps_start = eps_start
-        self.eps_end = eps_end
-        self.eps_last_frame = eps_last_frame
-        self.tol = tol
-        self.sync_rate = sync_rate
-        self.gamma = gamma
-        self.lr = learning_rate
-        self.batch_size = batch_size
-        self.memory_size = memory_size
-        self.warm_start_size = warm_start_size
-        self.batches_per_epoch = batches_per_epoch
-        self.n_steps = n_steps
-        self.max_steps = max_steps
-        self.save_hyperparameters()
-
-        # Environment
-        self.env = Environment(self.dm, self.gc_size)
-        self.test_env = Environment(self.dm, self.gc_size)
-        self.state = self.env.state[0]
-        self.reward_func = reward_func
-        self.n_actions = gc_size * 2
-        self.epsilon = self.eps_start
 
         # Metrics
         self.total_episode_steps = [0]
@@ -372,12 +390,15 @@ class DQModel(pl.LightningModule):
 
         sample = random.random()
         if sample > epsilon:
-            return self.policy_net(env.state[0]).max(-1)[1].view(1, 1)
+            net_input = torch.tensor(
+                env.state[1].flatten().astype(np.float32), device=self.device
+            )
+            return self.policy_net(net_input).max(-1)[1].view(1, 1).item()
         else:
             return torch.tensor(
                 [[random.randrange(self.n_actions)]],
                 device=self.device, dtype=torch.long
-            )
+            ).item()
 
     def run_n_episodes(
         self, env, n_episodes: int = 1, epsilon: float = 1.0
@@ -416,7 +437,7 @@ class DQModel(pl.LightningModule):
 
         if warm_start > 0:
             self.env.reset()
-            self.state = self.env.state[0]
+            self.state = self.env.state[1]
             prev_reward = self.min_episode_reward
             local_steps = 0
 
@@ -426,22 +447,23 @@ class DQModel(pl.LightningModule):
                 action = self.get_action(self.env, self.epsilon)
                 self.env.step(action)
 
-                next_state = self.env.state[0]
+                next_state = self.env.state[1]
                 reward = self.reward_func(self.env)
-
-                self.memory.push(
-                    self.state, action, next_state, reward
+                done = self.env.is_done(
+                    prev_reward, reward, self.tol, self.max_steps, local_steps
                 )
 
-                if self.env.is_done(
-                    prev_reward, reward, self.tol, self.max_steps, local_steps
-                ):
+                self.memory.push(
+                    self.state, action, reward, done, next_state
+                )
+
+                if done:
                     self.env.reset()
-                    self.state = self.env.state[0]
+                    self.state = self.env.state[1]
                     prev_reward = self.min_episode_reward
                     local_steps = 0
 
-    def configure_optimizers(self) -> List[optim.optimizer.Optimizer]:
+    def configure_optimizers(self) -> List[Optimizer]:
         """Configure Adam optimizer."""
         optimizer = optim.Adam(self.policy_net.parameters(), lr=self.gamma)
         return [optimizer]
@@ -479,7 +501,7 @@ class DQModel(pl.LightningModule):
             self.total_steps += 1
             action = self.get_action(self.env, self.epsilon)
             self.env.step(action)
-            next_state = self.env.state[0]
+            next_state = self.env.state[1]
             reward = self.reward_func(self.env)
             is_done = self.env.is_done(
                 prev_reward, reward, self.tol, self.max_steps, episode_steps
@@ -489,7 +511,7 @@ class DQModel(pl.LightningModule):
             episode_steps += 1
 
             self.update_epsilon(self.global_step)
-            self.memory.push(self.state, action, next_state, reward)
+            self.memory.push(self.state, action, reward, is_done, next_state)
             self.state = next_state
 
             if is_done:
@@ -527,7 +549,7 @@ class DQModel(pl.LightningModule):
             batch number, not used
         """
 
-        loss = dqn_loss(batch, self.net, self.target_net, self.gamma)
+        loss = dqn_loss(batch, self.policy_net, self.target_net, self.gamma)
 
         if self.trainer.use_dp or self.trainer.use_ddp2:
             loss = loss.unsqueeze(0)
