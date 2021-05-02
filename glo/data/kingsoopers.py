@@ -281,6 +281,13 @@ class ScrapyKingSoopersDataModule(pl.LightningDataModule):
                     del self.ks_norm[col]
 
             self.ks_norm.dropna(axis=0, how="any", inplace=True)
+
+            # Normalize nutrition
+            for nf_index in range(len(self.ks_norm.iloc[0]["nutrition"])):
+                self.ks_norm[f"nutrition{nf_index}"] = \
+                    self.ks_norm["nutrition"].apply(lambda x: x[0])
+
+            del self.ks_norm["nutrition"]
             self.ks_norm_numpy = self.ks_norm.to_numpy()
 
     def train_dataloader(self):
